@@ -32,8 +32,9 @@
 			<Add option="-Wall" />
 		</Compiler>
 		<Unit filename="myseqfunctions/kmer.h" />
+		<Unit filename="myseqfunctions/readFastq.h" />
 		<Unit filename="myseqfunctions/traceIdList.h" />
-		<Unit filename="test.c">
+		<Unit filename="readfq.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Extensions>

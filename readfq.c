@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include "../myseqfunctions/kmer.h"
-#include "../myseqfunctions/readFastq.h"
+#include "myseqfunctions/kmer.h"
+#include "myseqfunctions/readFastq.h"
 
 #define KMERSIZE 11
 
