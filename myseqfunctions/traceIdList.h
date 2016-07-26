@@ -15,7 +15,16 @@ typedef enum { false, true } bool;
 
 #define FIRST_IN_TRACE 0x80
 #define LAST_IN_TRACE  0x40
+#define IN_USE         0x01
 
+// Set, unset and check flags in traces
+// a -> tId object
+// b -> flag to operate
+
+#define SET(a, b) (((a)->trace.flag = (a)->trace.flag | b))
+#define UNSET(a, b) ((a)->trace.flag = (a)->trace.flag ^ b)
+#define IS(a, b) ((a)->trace.flag & b)
+/*
 #define SET_AS_FIRST(a) ((a)->trace.flag = (a)->trace.flag | FIRST_IN_TRACE)
 #define UNSET_AS_FIRST(a) ((a)->trace.flag = (a)->trace.flag ^ FIRST_IN_TRACE)
 #define IS_FIRST(a) ((a)->trace.flag & FIRST_IN_TRACE)
@@ -24,6 +33,10 @@ typedef enum { false, true } bool;
 #define UNSET_AS_LAST(a) ((a)->trace.flag = (a)->trace.flag ^ LAST_IN_TRACE)
 #define IS_LAST(a) ((a)->trace.flag & LAST_IN_TRACE)
 
+#define SET_IN_USE(a) ((a)->trace.flag = (a)->trace.flag | IN_USE)
+#define UNSET_IN_USE(a) ((a)->trace.flag = (a)->trace.flag ^ IN_USE)
+#define IS_IN_USE(a) ((a)->trace.flag & IN_USE)
+*/
 //
 
 
@@ -222,7 +235,7 @@ tIdList* traceLast(tIdList* t){
   tIdList* result = NULL;
   tIdList* tmp = t;
   while (tmp){
-    if (IS_LAST(tmp)){
+    if (IS(tmp, LAST_IN_TRACE)){
       insertInTIdList(&result, tmp->trace.n);
     }
     tmp = tmp->next;
@@ -234,7 +247,7 @@ tIdList* traceFirst(tIdList* t){
   tIdList* result = NULL;
   tIdList* tmp = t;
   while (tmp){
-    if (IS_FIRST(tmp)){
+    if (IS(tmp, FIRST_IN_TRACE)){
       insertInTIdList(&result, tmp->trace.n);
     }
     tmp = tmp->next;
@@ -245,28 +258,28 @@ tIdList* traceFirst(tIdList* t){
 void setAsFirst (tIdList** t){
   tIdList* tmp = *t;
   while (tmp){
-    SET_AS_FIRST(tmp);
+    SET(tmp, FIRST_IN_TRACE);
     tmp = tmp->next;
   }
 }
 void setAsLast (tIdList** t){
   tIdList* tmp = *t;
   while (tmp){
-    SET_AS_LAST(tmp);
+    SET(tmp, LAST_IN_TRACE);
     tmp = tmp->next;
   }
 }
 void unsetAsFirst(tIdList** t){
   tIdList* tmp = *t;
   while (tmp){
-    if (IS_FIRST(tmp)) UNSET_AS_FIRST(tmp);
+    if (IS(tmp, FIRST_IN_TRACE)) UNSET(tmp, FIRST_IN_TRACE);
     tmp = tmp->next;
   }
 }
 void unsetAsLast(tIdList** t){
   tIdList* tmp = *t;
   while (tmp){
-    if (IS_LAST(tmp)) UNSET_AS_LAST(tmp);
+    if (IS(tmp, LAST_IN_TRACE)) UNSET(tmp, LAST_IN_TRACE);
     tmp = tmp->next;
   }
 }
