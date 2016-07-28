@@ -20,11 +20,11 @@ typedef enum { false, true } bool;
 #endif /* BOOL */
 
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
-#define D_(a) (if (DEBUG){\
-                a ;\
-                })
+#define D_(a) (if (DEBUG){ \
+                a ; \
+                }) \
 // FLAGS
-#define IN_USE 0x01
+
 //
 
 
@@ -32,7 +32,8 @@ typedef struct kC{
   uint32_t dest;
   uint32_t uid;  // For debugging purposes, may lose later
   uint16_t n; // Number of events supporting connection
-  tIdList* idflags; // Info about each trace (id, isFirst, isLast,...)
+  uint8_t flags; // Connector-specific flags (in_use, ...)
+  tIdList* idflags; // Info about each trace (id, isFirst, isLast, inUse...)
   struct kC* next;
 } kmerConnector;
 
@@ -53,6 +54,7 @@ typedef struct st{
   LISTTYPE cId;      // Current id for kmerConnector
   kcLL* trace;      // Keeps track of the related kmers in the current trace
   uint32_t current; // Last kmer read
+  bool start;       // No kc has still been filled
   bool isFirst;     // Is it the first in a trace?
   bool addExistingTrace;    // Should trace ids be added? (If not, cId is inserted)
   tIdList* extendMe;      // Which tIds can be extended?
@@ -411,6 +413,7 @@ void resetTrace(kmerHolder** kp){
   kcLL** tmpp = &ms->status->trace;
   kcLL* tmp = *tmpp;
   bool markFirst = false;
+  if (DEBUG) printf("Resetting trace with status %d\n", ms->status->addExistingTraceStatus);
   if (ms->status->addExistingTraceStatus == 0){
     ms->status->addExistingTrace = false;
   }
@@ -449,6 +452,7 @@ void resetTrace(kmerHolder** kp){
   ms->status->traceSet = NULL;
   ms->status->addExistingTrace = true;
   ms->status->addExistingTraceStatus = 0;
+  ms->status->start   = true;
   ms->status->isFirst = true;
   ms->status->current = NOKMER;
   resetKmer(kp);
@@ -516,6 +520,11 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
         ms->status->traceSet = fst;
         ms->status->addExistingTraceStatus = 1;
       }
+      else if (ms->status->isFirst){
+        ms->status->isFirst = false;
+        ms->status->traceSet = copyTIdList(kc->idflags);
+        ms->status->addExistingTraceStatus = 1;
+      }
       else{
         ms->status->addExistingTrace = false;
         ms->status->addExistingTraceStatus = 3;
@@ -544,7 +553,7 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
       }
     }
   }
-  //ENCLOSE(printf("%d\n", ms->status->addExistingTraceStatus));
+  if (DEBUG) printf("TraceStatus: %d\n", ms->status->addExistingTraceStatus);
 }
 
 
@@ -578,8 +587,8 @@ kmerConnector* getConnector(memstruct** msp, uint32_t from, uint32_t to){
 
 void addRelationship(kmerHolder** kp, uint32_t to){
   memstruct* ms = (*kp)->ms;
-  if (ms->status->isFirst){
-    ms->status->isFirst = false;
+  if (ms->status->start){
+    ms->status->start = false;
     ms->status->current = to;
     return;
   }

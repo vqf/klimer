@@ -11,14 +11,14 @@
 int main(int argc,char** argv){
   srand((unsigned) time(NULL));
   kmerHolder *km = initKmer(11);
-  char* dtext = "ACGTACGTAAAAAAAAAAAAACGTACGTACGAGCT";
+  char* dtext = "GTAAAAAAAAAAAAAAACGTACGTACGAGCT";
   uint8_t l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
 
-  dtext = "ATAAACGTACGTAAAAAAAAAAAAACGTACGTACGAGCTTAGG";
+  dtext = "AAAAAAAAAAAAACGTACGTACGAGCTTAGG";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
