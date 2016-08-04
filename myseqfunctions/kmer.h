@@ -34,7 +34,8 @@ typedef struct kC{
   uint16_t n; // Number of events supporting connection
   uint8_t flags; // Connector-specific flags (in_use, ...)
   tIdList* idflags; // Info about each trace (id, isFirst, isLast, inUse...)
-  struct kC* next;
+  struct kC* next; // Another kC, same from, different dest
+  struct kcLL* circular; // Used to hold trace information in case of circular paths
 } kmerConnector;
 
 typedef struct mll{
