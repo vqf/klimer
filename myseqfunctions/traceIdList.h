@@ -2,9 +2,6 @@
 #define SNUMBERLIST_H_INCLUDED
 
 
-
-#endif // SNUMBERLIST_H_INCLUDED
-
 #ifndef BOOL
 #define BOOL
 typedef enum { false, true } bool;
@@ -43,9 +40,12 @@ typedef enum { false, true } bool;
 #define LISTTYPE uint8_t
 #define MAXLISTTYPE 0xFF
 
+#include "kmer.h"
+
 typedef struct tId{
   LISTTYPE n;
   uint8_t flag;
+  struct mll* circular;
 } tId;
 
 
@@ -283,3 +283,5 @@ void unsetAsLast(tIdList** t){
     tmp = tmp->next;
   }
 }
+
+#endif // SNUMBERLIST_H_INCLUDED

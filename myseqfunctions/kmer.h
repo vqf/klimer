@@ -1,3 +1,6 @@
+#ifndef KMER_H_INCLUDED
+#define KMER_H_INCLUDED
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +30,6 @@ typedef enum { false, true } bool;
 
 //
 
-struct mll;
 
 typedef struct kC{
   uint32_t dest;
@@ -36,7 +38,6 @@ typedef struct kC{
   uint8_t flags; // Connector-specific flags (in_use, ...)
   tIdList* idflags; // Info about each trace (id, isFirst, isLast, inUse...)
   struct kC* next; // Another kC, same from, different dest
-  struct mll* circular; // Used to hold trace information in case of circular paths
 } kmerConnector;
 
 typedef struct mll{
@@ -100,7 +101,7 @@ typedef struct kh{  //Used to read kmers
 void resetTrace(kmerHolder**);
 void resetKmer(kmerHolder**);
 void summarize (memstruct*);
-void destroyKcLL(kcLL**);
+void resetKcLL(kcLL**);
 void printKmerConnector(kmerConnector*, char*);
 void printKmerConnectors(memstruct*, uint32_t);
 void printKc(memstruct*);
@@ -181,7 +182,7 @@ memstruct* initFiveBase(){
 
 void destroyMs(memstruct** msp){
   memstruct* ms = *msp;
-  destroyKcLL(&ms->status->trace);
+  resetKcLL(&ms->status->trace);
   destroyTIdList(&ms->status->traceSet);
   destroyTIdList(&ms->status->extendMe);
   free(ms->status);
@@ -334,7 +335,7 @@ kcLL* newKcPointer(kmerConnector** newkcp){
   return result;
 }
 
-void destroyKcLL(kcLL** llp){
+void resetKcLL(kcLL** llp){
   kcLL* ll = *llp;
   while (ll){
     kcLL* todel = ll;
@@ -458,7 +459,7 @@ void resetTrace(kmerHolder** kp){
   ms->status->isFirst = true;
   ms->status->current = NOKMER;
   resetKmer(kp);
-  destroyKcLL(&ms->status->trace);
+  resetKcLL(&ms->status->trace);
   ms->status->trace = NULL;
 }
 
@@ -492,7 +493,6 @@ kmerConnector* newKmerConnector(uint32_t to){
   result->n       = 0;
   result->idflags = NULL;
   result->next    = NULL;
-  result->circular = NULL;
   return result;
 }
 
@@ -501,7 +501,6 @@ void delConnector(kmerConnector** kcp){
   while (tmp){
     kmerConnector* nxt = tmp->next;
     destroyTIdList(&tmp->idflags);
-    destroyKcLL(&tmp->circular);
     free(tmp);
     tmp = nxt;
   }
@@ -740,5 +739,4 @@ kmerHolder* initKmer(uint8_t kmerSize){
 
 
 
-
-
+#endif // KMER_H_INCLUDED
