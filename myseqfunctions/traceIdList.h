@@ -42,10 +42,11 @@ typedef enum { false, true } bool;
 
 #include "kmer.h"
 
+
 typedef struct tId{
   LISTTYPE n;
   uint8_t flag;
-  struct mll* circular;
+  struct mll* circular; // Only used when a trace references a kmer more than once
 } tId;
 
 
@@ -73,6 +74,7 @@ tIdList* newTIdList(LISTTYPE val){
   result->trace.n = val;
   result->trace.flag = 0;
   result->next = NULL;
+  result->trace.circular = NULL;
   return result;
 }
 
@@ -80,6 +82,7 @@ void destroyTIdList(tIdList** todel){
   while (*todel != NULL){
     tIdList* tmp = *todel;
     *todel = (*todel)->next;
+    resetKcLL(&tmp->trace.circular);
     free(tmp);
   }
 }
