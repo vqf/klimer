@@ -105,7 +105,7 @@ void resetKcLL(kcLL**);
 void printKmerConnector(kmerConnector*, char*);
 void printKmerConnectors(memstruct*, uint32_t);
 void printKc(memstruct*);
-void destroyTIdList(tIdList**);
+void destroyTIdList(tIdList**, void (*callback)(void**));
 void delConnector(kmerConnector**);
 
 
@@ -180,11 +180,17 @@ memstruct* initFiveBase(){
   return result;
 }
 
+void destroyCircular(void** toDest){
+  void* p = *toDest;
+  kcLL* k = (kcLL*) p;
+  resetKcLL(&k);
+}
+
 void destroyMs(memstruct** msp){
   memstruct* ms = *msp;
   resetKcLL(&ms->status->trace);
-  destroyTIdList(&ms->status->traceSet);
-  destroyTIdList(&ms->status->extendMe);
+  destroyTIdList(&ms->status->traceSet, destroyCircular);
+  destroyTIdList(&ms->status->extendMe, destroyCircular);
   free(ms->status);
   free(ms->bi->valBase);
   free(ms->bi->baseVal);
@@ -429,13 +435,13 @@ void resetTrace(kmerHolder** kp){
     }
     while(tmp){
       if (ms->status->addExistingTrace){
-        mergeTIdLists(&tmp->kc->idflags, ms->status->traceSet);
+        mergeTIdLists(&tmp->kc->idflags, ms->status->traceSet, destroyCircular);
         unsetAsFirst(&tmp->kc->idflags);
         unsetAsLast(&tmp->kc->idflags);
       }
       else{
         //ENCLOSE(printTIdList(tmp->kc->idflags); printf("cID: %d\n", ms->status->cId));
-        insertInTIdList(&tmp->kc->idflags, ms->status->cId);
+        insertInTIdList(&tmp->kc->idflags, ms->status->cId, destroyCircular);
       }
       tmp = tmp->next;
     }
@@ -448,9 +454,9 @@ void resetTrace(kmerHolder** kp){
     }
   }
   ms->status->cId = 0;
-  destroyTIdList(&ms->status->traceSet);
+  destroyTIdList(&ms->status->traceSet, destroyCircular);
   free(ms->status->traceSet);
-  destroyTIdList(&ms->status->extendMe);
+  destroyTIdList(&ms->status->extendMe, destroyCircular);
   free(ms->status->extendMe);
   ms->status->traceSet = NULL;
   ms->status->addExistingTrace = true;
@@ -500,7 +506,7 @@ void delConnector(kmerConnector** kcp){
   kmerConnector* tmp = *kcp;
   while (tmp){
     kmerConnector* nxt = tmp->next;
-    destroyTIdList(&tmp->idflags);
+    destroyTIdList(&tmp->idflags, destroyCircular);
     free(tmp);
     tmp = nxt;
   }
@@ -518,14 +524,14 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
   }
   if (ms->status->addExistingTraceStatus == 0){
     if (kc->idflags){
-      tIdList* fst = traceFirst(kc->idflags);
+      tIdList* fst = traceFirst(kc->idflags, destroyCircular);
       if (fst){
         ms->status->traceSet = fst;
         ms->status->addExistingTraceStatus = 1;
       }
       else if (ms->status->isFirst){
         ms->status->isFirst = false;
-        ms->status->traceSet = copyTIdList(kc->idflags);
+        ms->status->traceSet = copyTIdList(kc->idflags, destroyCircular);
         ms->status->addExistingTraceStatus = 1;
       }
       else{
@@ -536,11 +542,11 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
   }
   else if (ms->status->addExistingTrace){
     if (ms->status->addExistingTraceStatus == 1){
-      intersectTIdLists(&ms->status->traceSet, kc->idflags);
+      intersectTIdLists(&ms->status->traceSet, kc->idflags, destroyCircular);
       if (!ms->status->traceSet){
         if (ms->status->extendMe){
           ms->status->addExistingTraceStatus = 2;
-          destroyTIdList(&ms->status->traceSet);
+          destroyTIdList(&ms->status->traceSet, destroyCircular);
           ms->status->traceSet = ms->status->extendMe;
         }
         else{
@@ -583,7 +589,7 @@ kmerConnector* getConnector(memstruct** msp, uint32_t from, uint32_t to){
     }
   }
   //ms->status->cId = maxInList(ms->status->traceSet);
-  ms->status->extendMe = traceLast(result->idflags);
+  ms->status->extendMe = traceLast(result->idflags, destroyCircular);
   kcpush(&ms->status->trace, &result);
   return result;
 }

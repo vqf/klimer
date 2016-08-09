@@ -3,8 +3,6 @@
 
 
 
-#endif // NEATHTML_H_INCLUDED
-
 typedef struct tg{
   char* tagName;
   char* id;
@@ -108,3 +106,4 @@ char* sprintTag(tag* t){
   return result;
 }
 
+#endif // NEATHTML_H_INCLUDED
