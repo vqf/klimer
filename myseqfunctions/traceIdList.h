@@ -12,6 +12,7 @@ typedef enum { false, true } bool;
 
 #define FIRST_IN_TRACE 0x80
 #define LAST_IN_TRACE  0x40
+#define CIRCULAR       0x02
 #define IN_USE         0x01
 
 // Set, unset and check flags in traces
@@ -69,6 +70,12 @@ void printTIdList(tIdList* a){
   printf("\n");
 }
 
+
+/*
+ * New trace list
+ * trace.circular is a null void pointer, which will be cast into
+ * a kcLL* when necessary.
+ */
 tIdList* newTIdList(LISTTYPE val){
   tIdList* result = (tIdList*) calloc(1, sizeof(tIdList));
   result->trace.n = val;
@@ -82,6 +89,9 @@ void destroyTIdList(tIdList** todel, void (*callback)(void**)){
   while (*todel != NULL){
     tIdList* tmp = *todel;
     *todel = (*todel)->next;
+    if (tmp->trace.circular){
+      callback(&tmp->trace.circular);
+    }
     free(tmp);
   }
 }
@@ -257,6 +267,14 @@ tIdList* traceFirst(tIdList* t, void (*callback)(void**)){
   return result;
 }
 
+
+void setAsUsed (tIdList** t){
+  tIdList* tmp = *t;
+  while (tmp){
+    SET(tmp, IN_USE);
+    tmp = tmp->next;
+  }
+}
 void setAsFirst (tIdList** t){
   tIdList* tmp = *t;
   while (tmp){
@@ -271,6 +289,15 @@ void setAsLast (tIdList** t){
     tmp = tmp->next;
   }
 }
+
+void unsetInUse(tIdList** t){
+  tIdList* tmp = *t;
+  while (tmp){
+    if (IS(tmp, IN_USE)) UNSET(tmp, IN_USE);
+    tmp = tmp->next;
+  }
+}
+
 void unsetAsFirst(tIdList** t){
   tIdList* tmp = *t;
   while (tmp){
