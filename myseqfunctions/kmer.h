@@ -443,7 +443,10 @@ void resetTrace(kmerHolder** kp){
         //ENCLOSE(printTIdList(tmp->kc->idflags); printf("cID: %d\n", ms->status->cId));
         insertInTIdList(&tmp->kc->idflags, ms->status->cId, destroyCircular);
       }
+      // Check for trace loops
+
       tmp = tmp->next;
+      setAsUsed(&tmp->kc->idflags);
     }
     if (markFirst){
       setAsFirst(&ms->status->trace->kc->idflags);
@@ -452,6 +455,12 @@ void resetTrace(kmerHolder** kp){
     if (isLastInTrace(ms, ms->status->trace->last->kc)){
       setAsLast(&ms->status->trace->last->kc->idflags);
     }
+  }
+  /* Unset used bits */
+  tmp = ms->status->trace;
+  while (tmp){
+    unsetInUse(&tmp->kc->idflags);
+    tmp = tmp->next;
   }
   ms->status->cId = 0;
   destroyTIdList(&ms->status->traceSet, destroyCircular);
