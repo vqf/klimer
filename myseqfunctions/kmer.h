@@ -53,6 +53,7 @@ typedef struct bs{
 } baseInfo;
 
 typedef struct st{
+  tIdList* extendMe;      // Which tIds can be extended?
   tIdList* traceSet; // Keep tab of trace IDs the current read belongs to
   LISTTYPE cId;      // Current id for kmerConnector
   kcLL* trace;      // Keeps track of the related kmers in the current trace
@@ -60,24 +61,9 @@ typedef struct st{
   bool start;       // No kc has still been filled
   bool isFirst;     // Is it the first in a trace?
   bool addExistingTrace;    // Should trace ids be added? (If not, cId is inserted)
-  tIdList* extendMe;      // Which tIds can be extended?
-  uint8_t addExistingTraceStatus; // See below
+  uint8_t addExistingTraceStatus; // See _existingTrace
 } msStatus;
 
-/*
- * addExistingTrace is used to decide whether a new (cId) or existing (traceSet) trace is added.
- * addExistingTraceStatus can take several values that describe the current situation:
- *   0 -> No existing Ids have been added to traceSet. The situation is uncertain. If the trace
- * ends with this value, addExistingTrace should be false. If an existing id is found later, the
- * value should change to 1.
- *   1 -> Existing, non-empty Ids have been added to traceSet. If the trace ends with this value,
- * addExistingTrace should be true. If traceSet gets empty, its value should get to 2, but
- * addExistingTrace should still be true (there is no evidence that the trace is different).
- *   2 -> There is a traceSet that is being extended. If the trace ends with this value,
- * addExistingTrace should be true. If a new traceId is found, its value should get to 3, and
- * addExistingTrace should be definitely false.
- *   3 -> A new trace (cId) should be added. This value serves no other purpose.
- */
 
 typedef struct ms{ //Used to store all kmer combinations
   baseInfo* bi;
@@ -105,6 +91,7 @@ void resetKcLL(kcLL**);
 void printKmerConnector(kmerConnector*, char*);
 void printKmerConnectors(memstruct*, uint32_t);
 void printKc(memstruct*);
+void printKcLL(memstruct*, kcLL*);
 void destroyTIdList(tIdList**, void (*callback)(void**));
 void delConnector(kmerConnector**);
 
@@ -182,8 +169,10 @@ memstruct* initFiveBase(){
 
 void destroyCircular(void** toDest){
   void* p = *toDest;
-  kcLL* k = (kcLL*) p;
-  resetKcLL(&k);
+  if (p){
+    kcLL* k = (kcLL*) p;
+    resetKcLL(&k);
+  }
 }
 
 void destroyMs(memstruct** msp){
@@ -444,9 +433,18 @@ void resetTrace(kmerHolder** kp){
         insertInTIdList(&tmp->kc->idflags, ms->status->cId, destroyCircular);
       }
       // Check for trace loops
-
-      tmp = tmp->next;
+      if (isInUse(&tmp->kc->idflags)){
+        if (tmp->next){
+          if (tmp->kc->idflags->trace.circular){
+            kcpush((kcLL**) &tmp->kc->idflags->trace.circular, &tmp->next->kc);
+          }
+          else{
+            tmp->kc->idflags->trace.circular = newKcPointer(&tmp->next->kc);
+          }
+        }
+      }
       setAsUsed(&tmp->kc->idflags);
+      tmp = tmp->next;
     }
     if (markFirst){
       setAsFirst(&ms->status->trace->kc->idflags);
@@ -521,6 +519,23 @@ void delConnector(kmerConnector** kcp){
   }
   *kcp = NULL;
 }
+
+
+/*
+ * addExistingTrace is used to decide whether a new (cId) or existing (traceSet) trace is added.
+ * addExistingTraceStatus can take several values that describe the current situation:
+ *   0 -> No existing Ids have been added to traceSet. The situation is uncertain. If the trace
+ * ends with this value, addExistingTrace should be false. If an existing id is found later, the
+ * value should change to 1.
+ *   1 -> Existing, non-empty Ids have been added to traceSet. If the trace ends with this value,
+ * addExistingTrace should be true. If traceSet gets empty, its value should get to 2.
+ * addExistingTrace can still be true if the last kc is the last in a trace (exists extendMe).
+ * Otherwise, addExistingTrace should be false.
+ *   2 -> There is a traceSet that is being extended. If the trace ends with this value,
+ * addExistingTrace should be true. If a new traceId is found, its value should get to 3, and
+ * addExistingTrace should be definitely false.
+ *   3 -> A new trace (cId) should be added. This value serves no other purpose.
+ */
 
 void _existingTrace(memstruct** msp, kmerConnector** kcp){
   memstruct* ms = *msp;
@@ -634,8 +649,27 @@ void printKmerConnectors(memstruct* ms, uint32_t pos){
     pos2seq(&ms, kc->dest, seq);
     printKmerConnector(kc, seq);
     printTIdList(kc->idflags);
+    kcLL* tmp = (kcLL*) kc->idflags->trace.circular;
+    if (tmp){
+      printf("Circ: ");
+      while (tmp){
+        printf("%.8x\t", tmp->kc->uid);
+        tmp = tmp->next;
+      }
+      printf("\n");
+    }
     free(seq);
     kc = kc->next;
+  }
+}
+
+void printKcLL(memstruct* ms, kcLL* k){
+  while (k){
+    char* seq = (char*) calloc(ms->kmerSize + 1, sizeof(char));
+    pos2seq(&ms, k->kc->dest, seq);
+    printKmerConnector(k->kc, seq);
+    free(seq);
+    k = k->next;
   }
 }
 

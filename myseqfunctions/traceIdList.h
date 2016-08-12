@@ -85,12 +85,12 @@ tIdList* newTIdList(LISTTYPE val){
   return result;
 }
 
-void destroyTIdList(tIdList** todel, void (*callback)(void**)){
+void destroyTIdList(tIdList** todel, void (*funcDestroyCirc)(void**)){
   while (*todel != NULL){
     tIdList* tmp = *todel;
     *todel = (*todel)->next;
     if (tmp->trace.circular){
-      callback(&tmp->trace.circular);
+      funcDestroyCirc(&tmp->trace.circular);
     }
     free(tmp);
   }
@@ -268,6 +268,11 @@ tIdList* traceFirst(tIdList* t, void (*callback)(void**)){
 }
 
 
+bool isInUse(tIdList** t){
+  bool result = IS(*t, IN_USE);
+  return result;
+}
+
 void setAsUsed (tIdList** t){
   tIdList* tmp = *t;
   while (tmp){
@@ -275,6 +280,14 @@ void setAsUsed (tIdList** t){
     tmp = tmp->next;
   }
 }
+void setCircular (tIdList** t){
+  tIdList* tmp = *t;
+  while (tmp){
+    SET(tmp, CIRCULAR);
+    tmp = tmp->next;
+  }
+}
+
 void setAsFirst (tIdList** t){
   tIdList* tmp = *t;
   while (tmp){
@@ -294,6 +307,19 @@ void unsetInUse(tIdList** t){
   tIdList* tmp = *t;
   while (tmp){
     if (IS(tmp, IN_USE)) UNSET(tmp, IN_USE);
+    tmp = tmp->next;
+  }
+}
+
+bool isCircular(tIdList** t){
+  bool result = IS(*t, CIRCULAR);
+  return result;
+}
+
+void unsetCircular(tIdList** t){
+  tIdList* tmp = *t;
+  while (tmp){
+    if (IS(tmp, CIRCULAR)) UNSET(tmp, CIRCULAR);
     tmp = tmp->next;
   }
 }
