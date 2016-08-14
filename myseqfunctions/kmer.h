@@ -417,11 +417,11 @@ void resetTrace(kmerHolder** kp){
   }
   //printf("%d\t%d\t%d\n", ms->status->addExistingTraceStatus, ms->status->addExistingTrace, ms->status->cId);
   if (tmpp && tmp){
-    //printKc(ms);
     // If there is no idflags, this is the first in a trace
     if (!tmp->kc->idflags){
       markFirst = true;
     }
+    kcLL* tCirc = NULL; // Which kcs in this trace loop
     while(tmp){
       if (ms->status->addExistingTrace){
         mergeTIdLists(&tmp->kc->idflags, ms->status->traceSet, destroyCircular);
@@ -434,7 +434,7 @@ void resetTrace(kmerHolder** kp){
       }
       // Check for trace loops
       if (isInUse(&tmp->kc->idflags)){
-        if (tmp->next){
+        if (tmp->next && !isCircular(&tmp->kc->idflags)){
           if (tmp->kc->idflags->trace.circular){
             kcpush((kcLL**) &tmp->kc->idflags->trace.circular, &tmp->next->kc);
           }
@@ -442,6 +442,7 @@ void resetTrace(kmerHolder** kp){
             tmp->kc->idflags->trace.circular = newKcPointer(&tmp->next->kc);
           }
         }
+        kcpush(&tCirc, &tmp->kc);
       }
       setAsUsed(&tmp->kc->idflags);
       tmp = tmp->next;
@@ -453,13 +454,20 @@ void resetTrace(kmerHolder** kp){
     if (isLastInTrace(ms, ms->status->trace->last->kc)){
       setAsLast(&ms->status->trace->last->kc->idflags);
     }
+    /* Set circ bits*/
+    tmp = tCirc;
+    while (tmp){
+      setCircular(&tmp->kc->idflags);
+      tmp = tmp->next;
+    }
+    /* Unset used bits */
+    tmp = ms->status->trace;
+    while (tmp){
+      unsetInUse(&tmp->kc->idflags);
+      tmp = tmp->next;
+    }
   }
-  /* Unset used bits */
-  tmp = ms->status->trace;
-  while (tmp){
-    unsetInUse(&tmp->kc->idflags);
-    tmp = tmp->next;
-  }
+  /* Clean for next trace */
   ms->status->cId = 0;
   destroyTIdList(&ms->status->traceSet, destroyCircular);
   free(ms->status->traceSet);
@@ -649,14 +657,18 @@ void printKmerConnectors(memstruct* ms, uint32_t pos){
     pos2seq(&ms, kc->dest, seq);
     printKmerConnector(kc, seq);
     printTIdList(kc->idflags);
-    kcLL* tmp = (kcLL*) kc->idflags->trace.circular;
-    if (tmp){
-      printf("Circ: ");
-      while (tmp){
-        printf("%.8x\t", tmp->kc->uid);
-        tmp = tmp->next;
+    tIdList* tlist = kc->idflags;
+    while (tlist){
+      kcLL* tmp = (kcLL*) tlist->trace.circular;
+      if (tmp){
+        printf("Circ%u: ", tlist->trace.n);
+        while (tmp){
+          printf("%.8x\t", tmp->kc->uid);
+          tmp = tmp->next;
+        }
+        printf("\n");
       }
-      printf("\n");
+      tlist = tlist->next;
     }
     free(seq);
     kc = kc->next;
