@@ -22,6 +22,19 @@
 typedef enum { false, true } bool;
 #endif /* BOOL */
 
+#ifndef IN_USE
+#define IN_USE  0x01
+#endif /* IN_USE */
+
+// Set, unset and check flags in traces
+// a -> tId object
+// b -> flag to operate
+
+#define SETKC(a, b) (((a)->flags = (a)->flags | b))
+#define UNSETKC(a, b) ((a)->flags = (a)->flags ^ b)
+#define ISKC(a, b) ((a)->flags & b)
+
+
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
 #define D_(a) (if (DEBUG){ \
                 a ; \
@@ -406,6 +419,19 @@ bool isLastInTrace(memstruct* ms, kmerConnector* kc){
   return result;
 }
 
+void setAsUsed (kmerConnector** t){
+  kmerConnector* tmp = *t;
+  while (tmp){
+    SETKC(tmp, IN_USE);
+    tmp = tmp->next;
+  }
+}
+
+bool isInUse(kmerConnector** t){
+  bool result = ISKC(*t, IN_USE);
+  return result;
+}
+
 void resetTrace(kmerHolder** kp){
   memstruct* ms = (*kp)->ms;
   kcLL** tmpp = &ms->status->trace;
@@ -433,18 +459,24 @@ void resetTrace(kmerHolder** kp){
         insertInTIdList(&tmp->kc->idflags, ms->status->cId, destroyCircular);
       }
       // Check for trace loops
-      if (isInUse(&tmp->kc->idflags)){
-        if (tmp->next && !isCircular(&tmp->kc->idflags)){
-          if (tmp->kc->idflags->trace.circular){
-            kcpush((kcLL**) &tmp->kc->idflags->trace.circular, &tmp->next->kc);
-          }
-          else{
-            tmp->kc->idflags->trace.circular = newKcPointer(&tmp->next->kc);
+      if (isInUse(&tmp->kc)){
+        traceLL* cTraces = circTraces(&tmp->kc->idflags);
+        if (tmp->next && cTraces){
+          traceLL* tloop = cTraces;
+          while (tloop){
+            if (tmp->kc->idflags->trace.circular){
+              kcpush((kcLL**) &tloop->trace->circular, &tmp->next->kc);
+            }
+            else{
+              tloop->trace->circular = newKcPointer(&tmp->next->kc);
+            }
+            tloop = tloop->next;
           }
         }
         kcpush(&tCirc, &tmp->kc);
+        destroyTraceLL(&cTraces);
       }
-      setAsUsed(&tmp->kc->idflags);
+      setAsUsed(&tmp->kc);
       tmp = tmp->next;
     }
     if (markFirst){
@@ -667,6 +699,9 @@ void printKmerConnectors(memstruct* ms, uint32_t pos){
           tmp = tmp->next;
         }
         printf("\n");
+      }
+      else{
+        printf("NoCirc in trace %u\n", tlist->trace.n);
       }
       tlist = tlist->next;
     }

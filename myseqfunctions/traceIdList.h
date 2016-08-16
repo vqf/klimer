@@ -43,7 +43,6 @@ typedef enum { false, true } bool;
 
 #include "kmer.h"
 
-
 typedef struct tId{
   LISTTYPE n;
   uint8_t flag;
@@ -56,6 +55,13 @@ typedef struct iarr{
   struct iarr* next;
 } tIdList;
 
+typedef struct traceLL{
+  tId* trace;
+  struct traceLL* next;
+  struct traceLL* last;
+} traceLL;
+
+void printTraceLL(traceLL*);
 
 void printTIdList(tIdList* a){
   if (!a){
@@ -85,6 +91,27 @@ tIdList* newTIdList(LISTTYPE val){
   return result;
 }
 
+traceLL* newTraceLL(){
+  traceLL* result = (traceLL*) calloc(1, sizeof(traceLL));
+  return result;
+}
+
+void pushTrace(traceLL** tllp, tId* toadd){
+  traceLL* tll = *tllp;
+  traceLL* newtll = newTraceLL();
+  newtll->trace = toadd;
+  newtll->next  = NULL;
+  newtll->last  = newtll;
+  if (!tll){
+    tll = newtll;
+  }
+  else{
+    tll->last->next = newtll;
+    tll->last = newtll;
+  }
+  *tllp = tll;
+}
+
 void destroyTIdList(tIdList** todel, void (*funcDestroyCirc)(void**)){
   while (*todel != NULL){
     tIdList* tmp = *todel;
@@ -93,6 +120,15 @@ void destroyTIdList(tIdList** todel, void (*funcDestroyCirc)(void**)){
       funcDestroyCirc(&tmp->trace.circular);
     }
     free(tmp);
+  }
+}
+
+void destroyTraceLL(traceLL** tll){
+  traceLL* tmp = *tll;
+  while (tmp){
+    traceLL* nxt = tmp->next;
+    free(tmp);
+    tmp = nxt;
   }
 }
 
@@ -268,18 +304,7 @@ tIdList* traceFirst(tIdList* t, void (*callback)(void**)){
 }
 
 
-bool isInUse(tIdList** t){
-  bool result = IS(*t, IN_USE);
-  return result;
-}
 
-void setAsUsed (tIdList** t){
-  tIdList* tmp = *t;
-  while (tmp){
-    SET(tmp, IN_USE);
-    tmp = tmp->next;
-  }
-}
 void setCircular (tIdList** t){
   tIdList* tmp = *t;
   while (tmp){
@@ -311,10 +336,29 @@ void unsetInUse(tIdList** t){
   }
 }
 
-bool isCircular(tIdList** t){
-  bool result = IS(*t, CIRCULAR);
+void printTraceLL(traceLL* toprint){
+  printf("==\n");
+  while (toprint){
+    printf("Trace: %u\nFlag: %u\n", toprint->trace->n, toprint->trace->flag);
+    toprint = toprint->next;
+  }
+  printf("==\n");
+}
+
+
+traceLL* circTraces(tIdList** t){
+  traceLL* result = NULL;
+  tIdList* tmp = *t;
+  while (tmp){
+    if (!IS(tmp, CIRCULAR)){
+      pushTrace(&result, &tmp->trace);
+    }
+    tmp = tmp->next;
+  }
   return result;
 }
+
+
 
 void unsetCircular(tIdList** t){
   tIdList* tmp = *t;
