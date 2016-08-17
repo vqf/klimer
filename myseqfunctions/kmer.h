@@ -14,7 +14,7 @@
 #define LUI long unsigned int
 
 #ifndef DEBUG
-#define DEBUG 0
+#define DEBUG 1
 #endif /* DEBUG */
 
 #ifndef BOOL
@@ -36,9 +36,8 @@ typedef enum { false, true } bool;
 
 
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
-#define D_(a) (if (DEBUG){ \
-                a ; \
-                }) \
+#define D_(a) if (DEBUG) printf("%s\n", a);
+
 // FLAGS
 
 //
@@ -438,7 +437,7 @@ void resetTrace(kmerHolder** kp){
   kcLL* tmp = *tmpp;
   bool markFirst = false;
   if (DEBUG) printf("Resetting trace with status %d\n", ms->status->addExistingTraceStatus);
-  if (ms->status->addExistingTraceStatus == 0){
+  if (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3){
     ms->status->addExistingTrace = false;
   }
   //printf("%d\t%d\t%d\n", ms->status->addExistingTraceStatus, ms->status->addExistingTrace, ms->status->cId);
@@ -574,33 +573,38 @@ void delConnector(kmerConnector** kcp){
  *   2 -> There is a traceSet that is being extended. If the trace ends with this value,
  * addExistingTrace should be true. If a new traceId is found, its value should get to 3, and
  * addExistingTrace should be definitely false.
- *   3 -> A new trace (cId) should be added. This value serves no other purpose.
+ *   3 -> A new trace (cId) should be added. In fact, this is equivalent to 0, but this value
+ * is kept for debugging purposes
+ *   4 -> A new trace (cId) should be added. This is final and happens when a read connects
+ * two incompatible traces directly.
  */
 
 void _existingTrace(memstruct** msp, kmerConnector** kcp){
   memstruct* ms = *msp;
   kmerConnector* kc = *kcp;
+  tIdList* fst = traceFirst(kc->idflags, destroyCircular);
   if (kc->idflags){
     LISTTYPE m = maxInList(kc->idflags);
     if (ms->status->cId <= m){
       ms->status->cId = m + 1;
     }
   }
-  if (ms->status->addExistingTraceStatus == 0){
+  if (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3){
     if (kc->idflags){
-      tIdList* fst = traceFirst(kc->idflags, destroyCircular);
       if (fst){
         ms->status->traceSet = fst;
         ms->status->addExistingTraceStatus = 1;
+        D_("Found an existing trace: 0 to 1");
       }
       else if (ms->status->isFirst){
         ms->status->isFirst = false;
         ms->status->traceSet = copyTIdList(kc->idflags, destroyCircular);
         ms->status->addExistingTraceStatus = 1;
+        D_("Coincidence: 0 to 1");
       }
       else{
-        ms->status->addExistingTrace = false;
         ms->status->addExistingTraceStatus = 3;
+        D_("Found existing trace, not first: 0 to 3");
       }
     }
   }
@@ -612,17 +616,18 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
           ms->status->addExistingTraceStatus = 2;
           destroyTIdList(&ms->status->traceSet, destroyCircular);
           ms->status->traceSet = ms->status->extendMe;
+          D_("Extending existing traces: 1 to 2");
         }
         else{
-          ms->status->addExistingTrace = false;
           ms->status->addExistingTraceStatus = 3;
+          D_("No traces to extend: 1 to 3");
         }
       }
     }
     else if (ms->status->addExistingTraceStatus == 2){
       if (kc->idflags){
-        ms->status->addExistingTrace = false;
         ms->status->addExistingTraceStatus = 3;
+        D_("Conflict: 2 to 3");
       }
     }
   }
@@ -699,9 +704,6 @@ void printKmerConnectors(memstruct* ms, uint32_t pos){
           tmp = tmp->next;
         }
         printf("\n");
-      }
-      else{
-        printf("NoCirc in trace %u\n", tlist->trace.n);
       }
       tlist = tlist->next;
     }
