@@ -446,12 +446,13 @@ void resetTrace(kmerHolder** kp){
     if (!tmp->kc->idflags){
       markFirst = true;
     }
-    kcLL* tCirc = NULL; // Which kcs in this trace loop
+    kcLL* kcCirc = NULL; // Which kcs in this trace loop
+    traceLL* tCirc = newTraceLL(); // Which traces loop
     while(tmp){
       if (ms->status->addExistingTrace){
         mergeTIdLists(&tmp->kc->idflags, ms->status->traceSet, destroyCircular);
-        unsetAsFirst(&tmp->kc->idflags);
-        unsetAsLast(&tmp->kc->idflags);
+        unsetAsFirst(&tmp->kc->idflags, ms->status->traceSet);
+        unsetAsLast(&tmp->kc->idflags, ms->status->traceSet);
       }
       else{
         //ENCLOSE(printTIdList(tmp->kc->idflags); printf("cID: %d\n", ms->status->cId));
@@ -459,44 +460,58 @@ void resetTrace(kmerHolder** kp){
       }
       // Check for trace loops
       if (isInUse(&tmp->kc)){
-        traceLL* cTraces = circTraces(&tmp->kc->idflags);
+        tIdList* cTraces = circTraces(&tmp->kc->idflags, destroyCircular);
         if (tmp->next && cTraces){
-          traceLL* tloop = cTraces;
+          pushTrace(&tCirc, cTraces, destroyCircular);
+          tIdList* tloop = cTraces;
           while (tloop){
             if (tmp->kc->idflags->trace.circular){
-              kcpush((kcLL**) &tloop->trace->circular, &tmp->next->kc);
+              kcpush((kcLL**) &tloop->trace.circular, &tmp->next->kc);
             }
             else{
-              tloop->trace->circular = newKcPointer(&tmp->next->kc);
+              tloop->trace.circular = newKcPointer(&tmp->next->kc);
             }
             tloop = tloop->next;
           }
         }
-        kcpush(&tCirc, &tmp->kc);
-        destroyTraceLL(&cTraces);
+        destroyTIdList(&cTraces, destroyCircular);
+        kcpush(&kcCirc, &tmp->kc);
       }
       setAsUsed(&tmp->kc);
       tmp = tmp->next;
+      nextTraceLL(&tCirc);
     }
     if (markFirst){
-      setAsFirst(&ms->status->trace->kc->idflags);
+      tIdList* which = ms->status->traceSet;
+      if (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3){
+        which = ms->status->trace->kc->idflags;
+      }
+      setAsFirst(&ms->status->trace->kc->idflags, which);
     }
     //This is the last one in a read. Is it the last one in a trace?
     if (isLastInTrace(ms, ms->status->trace->last->kc)){
-      setAsLast(&ms->status->trace->last->kc->idflags);
+      tIdList* which = ms->status->traceSet;
+      if (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3){
+        which = ms->status->trace->last->kc->idflags;
+      }
+      setAsLast(&ms->status->trace->last->kc->idflags, which);
     }
     /* Set circ bits*/
-    tmp = tCirc;
-    while (tmp){
-      setCircular(&tmp->kc->idflags);
-      tmp = tmp->next;
+    kcLL* kctmp    = kcCirc;
+    traceLL* ttmp  = tCirc;
+    while (kctmp){
+      setCircular(&kctmp->kc->idflags, ttmp->tidl);
+      kctmp = kctmp->next;
+      ttmp  = ttmp->next;
     }
     /* Unset used bits */
     tmp = ms->status->trace;
     while (tmp){
-      unsetInUse(&tmp->kc->idflags);
+      unsetInUse(&tmp->kc->idflags, ms->status->traceSet);
       tmp = tmp->next;
     }
+    destroyTraceLL(&tCirc, destroyCircular);
+    resetKcLL(&kcCirc);
   }
   /* Clean for next trace */
   ms->status->cId = 0;

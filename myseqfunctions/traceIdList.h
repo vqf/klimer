@@ -15,6 +15,8 @@ typedef enum { false, true } bool;
 #define CIRCULAR       0x02
 #define IN_USE         0x01
 
+#define P_(a) printf("%s at %d: %p\n", #a, __LINE__, a);
+
 // Set, unset and check flags in traces
 // a -> tId object
 // b -> flag to operate
@@ -22,20 +24,6 @@ typedef enum { false, true } bool;
 #define SET(a, b) (((a)->trace.flag = (a)->trace.flag | b))
 #define UNSET(a, b) ((a)->trace.flag = (a)->trace.flag ^ b)
 #define IS(a, b) ((a)->trace.flag & b)
-/*
-#define SET_AS_FIRST(a) ((a)->trace.flag = (a)->trace.flag | FIRST_IN_TRACE)
-#define UNSET_AS_FIRST(a) ((a)->trace.flag = (a)->trace.flag ^ FIRST_IN_TRACE)
-#define IS_FIRST(a) ((a)->trace.flag & FIRST_IN_TRACE)
-
-#define SET_AS_LAST(a) ((a)->trace.flag = (a)->trace.flag | LAST_IN_TRACE)
-#define UNSET_AS_LAST(a) ((a)->trace.flag = (a)->trace.flag ^ LAST_IN_TRACE)
-#define IS_LAST(a) ((a)->trace.flag & LAST_IN_TRACE)
-
-#define SET_IN_USE(a) ((a)->trace.flag = (a)->trace.flag | IN_USE)
-#define UNSET_IN_USE(a) ((a)->trace.flag = (a)->trace.flag ^ IN_USE)
-#define IS_IN_USE(a) ((a)->trace.flag & IN_USE)
-*/
-//
 
 
 #define LISTTYPE uint8_t
@@ -56,9 +44,8 @@ typedef struct iarr{
 } tIdList;
 
 typedef struct traceLL{
-  tId* trace;
+  tIdList* tidl;
   struct traceLL* next;
-  struct traceLL* last;
 } traceLL;
 
 void printTraceLL(traceLL*);
@@ -91,27 +78,6 @@ tIdList* newTIdList(LISTTYPE val){
   return result;
 }
 
-traceLL* newTraceLL(){
-  traceLL* result = (traceLL*) calloc(1, sizeof(traceLL));
-  return result;
-}
-
-void pushTrace(traceLL** tllp, tId* toadd){
-  traceLL* tll = *tllp;
-  traceLL* newtll = newTraceLL();
-  newtll->trace = toadd;
-  newtll->next  = NULL;
-  newtll->last  = newtll;
-  if (!tll){
-    tll = newtll;
-  }
-  else{
-    tll->last->next = newtll;
-    tll->last = newtll;
-  }
-  *tllp = tll;
-}
-
 void destroyTIdList(tIdList** todel, void (*funcDestroyCirc)(void**)){
   while (*todel != NULL){
     tIdList* tmp = *todel;
@@ -123,14 +89,14 @@ void destroyTIdList(tIdList** todel, void (*funcDestroyCirc)(void**)){
   }
 }
 
-void destroyTraceLL(traceLL** tll){
-  traceLL* tmp = *tll;
-  while (tmp){
-    traceLL* nxt = tmp->next;
-    free(tmp);
-    tmp = nxt;
-  }
+
+traceLL* newTraceLL(){
+  traceLL* result = (traceLL*) calloc(1, sizeof(traceLL));
+  result->tidl = NULL;
+  result->next = NULL;
+  return result;
 }
+
 
 LISTTYPE maxInList(tIdList* l){
   if (!l){
@@ -146,7 +112,7 @@ LISTTYPE maxInList(tIdList* l){
   return result;
 }
 
-void insertInTIdList(tIdList** Iarr, uint8_t val, void (*callback)(void**)){
+void insertInTIdList(tIdList** Iarr, LISTTYPE val, void (*callback)(void**)){
   if (!*Iarr){
     *Iarr = newTIdList(val);
     return;
@@ -279,6 +245,41 @@ bool isInTIdList(tIdList* arr, LISTTYPE val){
   return result;
 }
 
+
+
+//Pushes trace copy into the last traceLL
+traceLL* lastTraceLL(traceLL** tllp){
+  traceLL* result = *tllp;
+  while (result->next){
+    result = result->next;
+  }
+  return result;
+}
+
+void pushTrace(traceLL** tllp, tIdList* toadd, void (*callback)(void**)){
+  traceLL* nxt = lastTraceLL(tllp);
+  insertInTIdList(&nxt->tidl, toadd->trace.n, callback);
+}
+//Adds traceLL at the end
+void nextTraceLL(traceLL** tllp){
+  traceLL* nxt = lastTraceLL(tllp);
+  nxt->next = newTraceLL();
+}
+
+
+
+
+void destroyTraceLL(traceLL** tll, void (*funcDestroyCirc)(void**)){
+  traceLL* tmp = *tll;
+  while (tmp){
+    traceLL* nxt = tmp->next;
+    destroyTIdList(&tmp->tidl, funcDestroyCirc);
+    free(tmp);
+    tmp = nxt;
+  }
+}
+
+
 tIdList* traceLast(tIdList* t, void (*callback)(void**)){
   tIdList* result = NULL;
   tIdList* tmp = t;
@@ -305,33 +306,73 @@ tIdList* traceFirst(tIdList* t, void (*callback)(void**)){
 
 
 
-void setCircular (tIdList** t){
+void setCircular (tIdList** t, tIdList* which){
+  if (!which) return;
   tIdList* tmp = *t;
+  LISTTYPE i = which->trace.n;
   while (tmp){
-    SET(tmp, CIRCULAR);
+    if (tmp->trace.n == i){
+      SET(tmp, CIRCULAR);
+    }
+    else {
+      while (tmp->trace.n > i && which){
+        which = which->next;
+        if (which) i = which->trace.n;
+      }
+    }
     tmp = tmp->next;
   }
 }
 
-void setAsFirst (tIdList** t){
+void setAsFirst (tIdList** t, tIdList* which){
+  if (!which) return;
   tIdList* tmp = *t;
+  LISTTYPE i = which->trace.n;
   while (tmp){
-    SET(tmp, FIRST_IN_TRACE);
+    if (tmp->trace.n == i){
+      SET(tmp, FIRST_IN_TRACE);
+    }
+    else {
+      while (tmp->trace.n > i && which){
+        which = which->next;
+        if (which) i = which->trace.n;
+      }
+    }
     tmp = tmp->next;
   }
 }
-void setAsLast (tIdList** t){
+void setAsLast (tIdList** t, tIdList* which){
+  if (!which) return;
   tIdList* tmp = *t;
+  LISTTYPE i = which->trace.n;
   while (tmp){
-    SET(tmp, LAST_IN_TRACE);
+    if (tmp->trace.n == i){
+      SET(tmp, LAST_IN_TRACE);
+    }
+    else {
+      while (tmp->trace.n > i && which){
+        which = which->next;
+        if (which) i = which->trace.n;
+      }
+    }
     tmp = tmp->next;
   }
 }
 
-void unsetInUse(tIdList** t){
+void unsetInUse(tIdList** t, tIdList* which){
+  if (!which) return;
   tIdList* tmp = *t;
+  LISTTYPE i = which->trace.n;
   while (tmp){
-    if (IS(tmp, IN_USE)) UNSET(tmp, IN_USE);
+    if (tmp->trace.n == i){
+      if (IS(tmp, IN_USE)) UNSET(tmp, IN_USE);
+    }
+    else {
+      while (tmp->trace.n > i && which){
+        which = which->next;
+        if (which) i = which->trace.n;
+      }
+    }
     tmp = tmp->next;
   }
 }
@@ -339,19 +380,20 @@ void unsetInUse(tIdList** t){
 void printTraceLL(traceLL* toprint){
   printf("==\n");
   while (toprint){
-    printf("Trace: %u\nFlag: %u\n", toprint->trace->n, toprint->trace->flag);
+    printTIdList(toprint->tidl);
+    printf("\n");
     toprint = toprint->next;
   }
   printf("==\n");
 }
 
 
-traceLL* circTraces(tIdList** t){
-  traceLL* result = NULL;
+tIdList* circTraces(tIdList** t, void (*callback)(void**)){
+  tIdList* result = NULL;
   tIdList* tmp = *t;
   while (tmp){
     if (!IS(tmp, CIRCULAR)){
-      pushTrace(&result, &tmp->trace);
+      insertInTIdList(&result, tmp->trace.n, callback);
     }
     tmp = tmp->next;
   }
@@ -360,27 +402,58 @@ traceLL* circTraces(tIdList** t){
 
 
 
-void unsetCircular(tIdList** t){
+void unsetCircular(tIdList** t, tIdList* which){
+  if (!which) return;
   tIdList* tmp = *t;
+  LISTTYPE i = which->trace.n;
   while (tmp){
-    if (IS(tmp, CIRCULAR)) UNSET(tmp, CIRCULAR);
+    if (tmp->trace.n == i){
+      if (IS(tmp, CIRCULAR)) UNSET(tmp, CIRCULAR);
+    }
+    else {
+      while (tmp->trace.n > i && which){
+        which = which->next;
+        if (which) i = which->trace.n;
+      }
+    }
     tmp = tmp->next;
   }
 }
 
-void unsetAsFirst(tIdList** t){
+void unsetAsFirst(tIdList** t, tIdList* which){
+  if (!which) return;
   tIdList* tmp = *t;
+  LISTTYPE i = which->trace.n;
   while (tmp){
-    if (IS(tmp, FIRST_IN_TRACE)) UNSET(tmp, FIRST_IN_TRACE);
+    if (tmp->trace.n == i){
+      if (IS(tmp, FIRST_IN_TRACE)) UNSET(tmp, FIRST_IN_TRACE);
+    }
+    else {
+      while (tmp->trace.n > i && which){
+        which = which->next;
+        if (which) i = which->trace.n;
+      }
+    }
     tmp = tmp->next;
   }
 }
-void unsetAsLast(tIdList** t){
+void unsetAsLast(tIdList** t, tIdList* which){
+  if (!which) return;
   tIdList* tmp = *t;
+  LISTTYPE i = which->trace.n;
   while (tmp){
-    if (IS(tmp, LAST_IN_TRACE)) UNSET(tmp, LAST_IN_TRACE);
+    if (tmp->trace.n == i){
+      if (IS(tmp, LAST_IN_TRACE)) UNSET(tmp, LAST_IN_TRACE);
+    }
+    else {
+      while (tmp->trace.n > i && which){
+        which = which->next;
+        if (which) i = which->trace.n;
+      }
+    }
     tmp = tmp->next;
   }
+
 }
 
 #endif // SNUMBERLIST_H_INCLUDED
