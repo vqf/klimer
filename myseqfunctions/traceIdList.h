@@ -15,7 +15,6 @@ typedef enum { false, true } bool;
 #define CIRCULAR       0x02
 #define IN_USE         0x01
 
-#define P_(a) printf("%s at %d: %p\n", #a, __LINE__, a);
 
 // Set, unset and check flags in traces
 // a -> tId object
@@ -47,6 +46,9 @@ typedef struct traceLL{
   tIdList* tidl;
   struct traceLL* next;
 } traceLL;
+
+typedef traceLL traceVessel; //TraceVessel only takes pointers and its tidl is
+                             // not freed
 
 void printTraceLL(traceLL*);
 
@@ -279,6 +281,15 @@ void destroyTraceLL(traceLL** tll, void (*funcDestroyCirc)(void**)){
   }
 }
 
+void destroyTraceVessel(traceVessel** tvp){
+  traceVessel* tmp = *tvp;
+  while (tmp){
+    traceVessel* nxt = tmp->next;
+    free(tmp);
+    tmp = nxt;
+  }
+}
+
 
 tIdList* traceLast(tIdList* t, void (*callback)(void**)){
   tIdList* result = NULL;
@@ -304,15 +315,26 @@ tIdList* traceFirst(tIdList* t, void (*callback)(void**)){
   return result;
 }
 
+void pushTraceInVessel(traceVessel** tvp, tIdList** tp){
+  traceVessel* ptr = *tvp;
+  tIdList* el = *tp;
+  while (ptr->next){
+    ptr = ptr->next;
+  }
+  ptr->tidl = el;
+  ptr->next = (traceVessel*) newTraceLL();
+}
 
-
-void setCircular (tIdList** t, tIdList* which){
-  if (!which) return;
-  tIdList* tmp = *t;
+traceVessel* _getTraces(tIdList** tp, tIdList* which){
+  tIdList* tmp = *tp;
+  traceVessel* result = (traceVessel*) newTraceLL();
+  traceVessel* pointer = result;
   LISTTYPE i = which->trace.n;
   while (tmp){
     if (tmp->trace.n == i){
-      SET(tmp, CIRCULAR);
+      pointer->tidl = tmp;
+      pointer->next = (traceVessel*) newTraceLL();
+      pointer = pointer->next;
     }
     else {
       while (tmp->trace.n > i && which){
@@ -322,59 +344,61 @@ void setCircular (tIdList** t, tIdList* which){
     }
     tmp = tmp->next;
   }
+  return result;
+}
+
+void setCircular (tIdList** t, tIdList* which){
+  if (!which) return;
+  traceVessel* tmp = _getTraces(t, which);
+  traceVessel* ptr = tmp;
+  while (ptr->tidl){
+    SET(ptr->tidl, CIRCULAR);
+    ptr = ptr->next;
+  }
+  destroyTraceVessel(&tmp);
 }
 
 void setAsFirst (tIdList** t, tIdList* which){
   if (!which) return;
-  tIdList* tmp = *t;
-  LISTTYPE i = which->trace.n;
-  while (tmp){
-    if (tmp->trace.n == i){
-      SET(tmp, FIRST_IN_TRACE);
-    }
-    else {
-      while (tmp->trace.n > i && which){
-        which = which->next;
-        if (which) i = which->trace.n;
-      }
-    }
-    tmp = tmp->next;
+  traceVessel* tmp = _getTraces(t, which);
+  traceVessel* ptr = tmp;
+  while (ptr->tidl){
+    SET(ptr->tidl, FIRST_IN_TRACE);
+    ptr = ptr->next;
   }
+  destroyTraceVessel(&tmp);
 }
 void setAsLast (tIdList** t, tIdList* which){
   if (!which) return;
-  tIdList* tmp = *t;
-  LISTTYPE i = which->trace.n;
-  while (tmp){
-    if (tmp->trace.n == i){
-      SET(tmp, LAST_IN_TRACE);
-    }
-    else {
-      while (tmp->trace.n > i && which){
-        which = which->next;
-        if (which) i = which->trace.n;
-      }
-    }
-    tmp = tmp->next;
+  traceVessel* tmp = _getTraces(t, which);
+  traceVessel* ptr = tmp;
+  while (ptr->tidl){
+    SET(ptr->tidl, LAST_IN_TRACE);
+    ptr = ptr->next;
   }
+  destroyTraceVessel(&tmp);
+}
+
+void setAsUsed(tIdList** t, tIdList* which){
+  if (!which) return;
+  traceVessel* tmp = _getTraces(t, which);
+  traceVessel* ptr = tmp;
+  while (ptr->tidl){
+    SET(ptr->tidl, IN_USE);
+    ptr = ptr->next;
+  }
+  destroyTraceVessel(&tmp);
 }
 
 void unsetInUse(tIdList** t, tIdList* which){
   if (!which) return;
-  tIdList* tmp = *t;
-  LISTTYPE i = which->trace.n;
-  while (tmp){
-    if (tmp->trace.n == i){
-      if (IS(tmp, IN_USE)) UNSET(tmp, IN_USE);
-    }
-    else {
-      while (tmp->trace.n > i && which){
-        which = which->next;
-        if (which) i = which->trace.n;
-      }
-    }
-    tmp = tmp->next;
+  traceVessel* tmp = _getTraces(t, which);
+  traceVessel* ptr = tmp;
+  while (ptr->tidl){
+    if (IS(ptr->tidl, IN_USE)) UNSET(ptr->tidl, IN_USE);
+    ptr = ptr->next;
   }
+  destroyTraceVessel(&tmp);
 }
 
 void printTraceLL(traceLL* toprint){
@@ -392,7 +416,7 @@ tIdList* circTraces(tIdList** t, void (*callback)(void**)){
   tIdList* result = NULL;
   tIdList* tmp = *t;
   while (tmp){
-    if (!IS(tmp, CIRCULAR)){
+    if (!IS(tmp, CIRCULAR) && IS(tmp, IN_USE)){
       insertInTIdList(&result, tmp->trace.n, callback);
     }
     tmp = tmp->next;
