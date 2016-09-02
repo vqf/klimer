@@ -430,11 +430,10 @@ void resetTrace(kmerHolder** kp){
   kcLL** tmpp = &ms->status->trace;
   kcLL* tmp = *tmpp;
   bool markFirst = false;
-  if (DEBUG) printf("Resetting trace with status %d\n", ms->status->addExistingTraceStatus);
+  D_(1, "Resetting trace with status %d\n", ms->status->addExistingTraceStatus);
   if (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3){
     ms->status->addExistingTrace = false;
   }
-  //printf("%d\t%d\t%d\n", ms->status->addExistingTraceStatus, ms->status->addExistingTrace, ms->status->cId);
   if (tmpp && tmp){
     // If there is no idflags, this is the first in a trace
     if (!tmp->kc->idflags){

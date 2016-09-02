@@ -81,7 +81,7 @@ tIdList* newTIdList(LISTTYPE val){
 }
 
 void destroyTIdList(tIdList** todel, void (*funcDestroyCirc)(void**)){
-  while (*todel != NULL){
+  while (*todel){
     tIdList* tmp = *todel;
     *todel = (*todel)->next;
     if (tmp->trace.circular){
