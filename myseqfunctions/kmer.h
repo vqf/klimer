@@ -67,7 +67,9 @@ typedef struct bs{
 } baseInfo;
 
 typedef struct st{
-  tIdList* extendMe;      // Which tIds can be extended?
+  bool extendMeUp;      // Which tIds can be extended?
+  bool extendMeDn;      // Which tIds can be extended?
+  tIdList* extendMe;
   tIdList* traceSet; // Keep tab of trace IDs the current read belongs to
   LISTTYPE cId;      // Current id for kmerConnector
   kcLL* trace;      // Keeps track of the related kmers in the current trace
@@ -110,6 +112,18 @@ void destroyTIdList(tIdList**, void (*callback)(void**));
 void delConnector(kmerConnector**);
 
 
+msStatus* initStatus(){
+  msStatus* result = (msStatus*) calloc(1, sizeof(msStatus));
+  result->trace = NULL;
+  result->addExistingTrace = true;
+  result->addExistingTraceStatus = 0;
+  result->extendMe = NULL;
+  result->extendMeUp = false;
+  result->extendMeDn = false;
+  result->cId = 0;
+  return result;
+}
+
 memstruct* initFourBase(){  /*
   * Init MM_baseVal for fast base value retrieval
   * MM_baseVal contains 0xFF elements, all except
@@ -137,11 +151,7 @@ memstruct* initFourBase(){  /*
   result->bi->baseVal[0x74] = 0x03; result->bi->baseVal[0x54] = 0x03; //tT
   result->bi->nbases = 4;
   // Init other fields
-  result->status = (msStatus*) calloc(1, sizeof(msStatus));
-  result->status->trace = NULL;
-  result->status->addExistingTrace = true;
-  result->status->addExistingTraceStatus = 0;
-  result->status->cId = 0;
+  result->status = initStatus();
   return result;
 }
 
@@ -173,11 +183,7 @@ memstruct* initFiveBase(){
   result->bi->baseVal[0x74] = 0x03; result->bi->baseVal[0x54] = 0x03; //tT
   result->bi->baseVal[0x6E] = 0x04; result->bi->baseVal[0x4E] = 0x04; //nN
   result->bi->nbases = 5;
-  result->status->trace = NULL;
-  result->status->addExistingTrace = true;
-  result->status->addExistingTraceStatus = 0;
-  result->status->extendMe = NULL;
-  result->status->cId = 0;
+  result->status = initStatus();
   return result;
 }
 
@@ -420,32 +426,32 @@ bool isLastInTrace(memstruct* ms, kmerConnector* kc){
   return result;
 }
 
-bool isInUse(kmerConnector** t){
-  bool result = ISKC(*t, IN_USE);
-  return result;
-}
-
 void resetTrace(kmerHolder** kp){
   memstruct* ms = (*kp)->ms;
   kcLL** tmpp = &ms->status->trace;
   kcLL* tmp = *tmpp;
   bool markFirst = false;
+  bool firstInRead = false;
+  bool lastInRead = false;
+  bool newTrace = (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3);
   D_(1, "Resetting trace with status %d\n", ms->status->addExistingTraceStatus);
-  if (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3){
+  if (newTrace){
     ms->status->addExistingTrace = false;
   }
   if (tmpp && tmp){
-    // If there is no idflags, this is the first in a trace
-    if (!tmp->kc->idflags){
+    // If extending upthis is the first in a trace
+    if (newTrace || ms->status->extendMeUp){
       markFirst = true;
+      firstInRead = true;
     }
+    if (!tmp->next) lastInRead = true;
     kcLL* kcCirc = NULL; // Which kcs in this trace loop
     traceLL* tCirc = newTraceLL(); // Which traces loop
     while(tmp){
       if (ms->status->addExistingTrace){
         mergeTIdLists(&tmp->kc->idflags, ms->status->traceSet, destroyCircular);
-        unsetAsFirst(&tmp->kc->idflags, ms->status->traceSet);
-        unsetAsLast(&tmp->kc->idflags, ms->status->traceSet);
+        if (!firstInRead) unsetAsFirst(&tmp->kc->idflags, ms->status->traceSet);
+        if (!lastInRead)  unsetAsLast(&tmp->kc->idflags, ms->status->traceSet);
       }
       else{
         //ENCLOSE(printTIdList(tmp->kc->idflags); printf("cID: %d\n", ms->status->cId));
@@ -476,10 +482,11 @@ void resetTrace(kmerHolder** kp){
       //ENCLOSE(printTIdList(tmp->kc->idflags));
       tmp = tmp->next;
       nextTraceLL(&tCirc);
+      if (firstInRead) firstInRead = false;
     }
     if (markFirst){
       tIdList* which = ms->status->traceSet;
-      if (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3){
+      if (newTrace){
         which = ms->status->trace->kc->idflags;
       }
       setAsFirst(&ms->status->trace->kc->idflags, which);
@@ -487,7 +494,7 @@ void resetTrace(kmerHolder** kp){
     //This is the last one in a read. Is it the last one in a trace?
     if (isLastInTrace(ms, ms->status->trace->last->kc)){
       tIdList* which = ms->status->traceSet;
-      if (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3){
+      if (newTrace){
         which = ms->status->trace->last->kc->idflags;
       }
       setAsLast(&ms->status->trace->last->kc->idflags, which);
@@ -605,17 +612,20 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
     if (kc->idflags){
       if (fst){
         ms->status->traceSet = fst;
+        ms->status->extendMeUp = true;
         ms->status->addExistingTraceStatus = 1;
         D_(1, "Found an existing trace: 0 to 1");
       }
       else if (ms->status->isFirst){
         ms->status->isFirst = false;
+        ms->status->extendMeUp = false;
         ms->status->traceSet = copyTIdList(kc->idflags, destroyCircular);
         ms->status->addExistingTraceStatus = 1;
-        D_(1, "Coincidence: 0 to 1");
+        D_(1, "Inside, not extending: 0 to 1");
       }
       else{
         ms->status->addExistingTraceStatus = 3;
+        ms->status->extendMeUp = false;
         D_(1, "Found existing trace, not first: 0 to 3");
       }
     }
@@ -628,10 +638,12 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
           ms->status->addExistingTraceStatus = 2;
           destroyTIdList(&ms->status->traceSet, destroyCircular);
           ms->status->traceSet = ms->status->extendMe;
+          ms->status->extendMeDn = true;
           D_(1, "Extending existing traces: 1 to 2");
         }
         else{
           ms->status->addExistingTraceStatus = 3;
+          ms->status->extendMeDn = false;
           D_(1, "No traces to extend: 1 to 3");
         }
       }
@@ -639,6 +651,8 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
     else if (ms->status->addExistingTraceStatus == 2){
       if (kc->idflags){
         ms->status->addExistingTraceStatus = 3;
+        ms->status->extendMeUp = false;
+        ms->status->extendMeDn = false;
         D_(1, "Conflict: 2 to 3");
       }
     }
