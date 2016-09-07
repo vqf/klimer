@@ -303,6 +303,32 @@ tIdList* traceLast(tIdList* t, void (*callback)(void**)){
   return result;
 }
 
+bool isTraceFirst(tIdList* t, void (*callback)(void**)){
+  bool result = false;
+  tIdList* tmp = t;
+  while (tmp){
+    if (IS(tmp, FIRST_IN_TRACE)){
+      result = true;
+      return result;
+    }
+    tmp = tmp->next;
+  }
+  return result;
+}
+
+bool isTraceLast(tIdList* t, void (*callback)(void**)){
+  bool result = false;
+  tIdList* tmp = t;
+  while (tmp){
+    if (IS(tmp, LAST_IN_TRACE)){
+      result = true;
+      return result;
+    }
+    tmp = tmp->next;
+  }
+  return result;
+}
+
 tIdList* traceFirst(tIdList* t, void (*callback)(void**)){
   tIdList* result = NULL;
   tIdList* tmp = t;
@@ -412,11 +438,11 @@ void printTraceLL(traceLL* toprint){
 }
 
 
-tIdList* circTraces(tIdList** t, void (*callback)(void**)){
+tIdList* circTraces(tIdList** t, bool extending, void (*callback)(void**)){
   tIdList* result = NULL;
   tIdList* tmp = *t;
   while (tmp){
-    if (!IS(tmp, CIRCULAR) && IS(tmp, IN_USE)){
+    if ((!IS(tmp, CIRCULAR) || extending) && IS(tmp, IN_USE)){
       insertInTIdList(&result, tmp->trace.n, callback);
     }
     tmp = tmp->next;
