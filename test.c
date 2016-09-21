@@ -18,13 +18,19 @@ int main(int argc,char** argv){
   }
   resetTrace(&km);
 
-  dtext = "AAAAAAAAAAAAACGTACGTACGAGCTTAGG";
+  dtext = "AAAAAAAAAAAACGTACGTACGAGCTTAGG";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
   dtext = "CCGTACGTACGTTCGTACGAGCTACGTTCGTAAAACGTACGTACGCGTACGTACGTTCGAAAAAAAAAAAAGACGAGCT";
+  l = strlen(dtext);
+  for (int i = 0; i < l; i++){
+    updateKmer(&km, &dtext[i], addRelationship);
+  }
+  resetTrace(&km);
+  dtext = "GAAAAAAAAAAAAACCCGTACGTACGTTCGTACGAGCTACGTTCGTAAAA";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
