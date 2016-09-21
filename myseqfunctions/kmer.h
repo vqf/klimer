@@ -2,7 +2,7 @@
 #define KMER_H_INCLUDED
 
 #ifndef DEBUG
-#define DEBUG 1
+#define DEBUG 2
 #endif /* DEBUG */
 
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
@@ -482,28 +482,37 @@ void resetTrace(kmerHolder** kp){
   D_(1, "Resetting trace with status %d\n", ms->status->addExistingTraceStatus);
   if (newTrace){
     ms->status->addExistingTrace = false;
+    D_(2, "This is a new trace\n");
   }
   // Are we extending from upstream?
   if (ms->status->extendMeUp && !newTrace){
     extendingUp = true; // Until we get to first_in_trace
+    D_(2, "Extending up\n");
   }
   if (tmpp && tmp){
     // If extending up this is the first in a trace
     if (newTrace || ms->status->extendMeUp){
       markFirst = true;
       firstInRead = true;
+      D_(2, "Marking as first: %.8x\n", tmp->kc->uid);
     }
-    if (!tmp->next) lastInRead = true;
+    if (!tmp->next){
+      lastInRead = true;
+      D_(2, "Got to the end of the read\n");
+    }
     kcLL* kcCirc = NULL; // Which kcs in this trace loop
     traceLL* tCirc = newTraceLL(); // Which traces loop
     tmpKcVessel* upXt = NULL;
     while(tmp){
+      D_(2, "Adding kc with uid: %.8x\n", tmp->kc->uid);
       if (extendingUp && isTraceFirst(tmp->kc->idflags, destroyCircular)){
         extendingUp = false; // Now download the contents of upXt
         extendCircUp(&upXt);
+        D_(2, "We are getting into known territory: %.8x\n", tmp->kc->uid);
       }
       if (!extendingDn && isTraceLast(tmp->kc->idflags, destroyCircular)){
         extendingDn = true;
+        D_(2, "Extending down\n");
       }
       if (ms->status->addExistingTrace){
         mergeTIdLists(&tmp->kc->idflags, ms->status->traceSet, destroyCircular);
@@ -511,7 +520,6 @@ void resetTrace(kmerHolder** kp){
         if (!lastInRead)  unsetAsLast(&tmp->kc->idflags, ms->status->traceSet);
       }
       else{
-        //ENCLOSE(printTIdList(tmp->kc->idflags); printf("cID: %d\n", ms->status->cId));
         insertInTIdList(&tmp->kc->idflags, ms->status->cId, destroyCircular);
         insertInTIdList(&ms->status->traceSet, ms->status->cId, destroyCircular);
       }
@@ -519,32 +527,43 @@ void resetTrace(kmerHolder** kp){
       bool overrideCirc = (extendingUp | extendingDn);
       tIdList* cTraces = circTraces(&tmp->kc->idflags, overrideCirc, destroyCircular);
       if (tmp->next && cTraces){
+        D_(2, "This kc loops with override %u\n", overrideCirc);
         pushTrace(&tCirc, cTraces, destroyCircular);
         kcpush(&kcCirc, &tmp->kc);
         nextTraceLL(&tCirc);
         traceVessel* tloop = _getTraces(&tmp->kc->idflags, cTraces);
         traceVessel* ptr = tloop;
         while (ptr->tidl){
+          //Did not know this one looped
+          if (!ptr->tidl->trace.circular){
+            ptr->tidl->trace.circular = newKcPointer(&tmp->next->kc);
+            D_(2, "Did not know it looped\n");
+          }
+          //Well, now you know
           if (extendingUp){
             tmpKcVessel* prev = newTmpKcVessel(&ptr->tidl->trace, &tmp->next->kc, &upXt);
             upXt = prev;
+            D_(2, "Unshifting temp loopers\n");
           }
           else{
-            if (ptr->tidl->trace.circular){
-              kcpush((kcLL**) &ptr->tidl->trace.circular, &tmp->next->kc);
-            }
-            else{
-              ptr->tidl->trace.circular = newKcPointer(&tmp->next->kc);
-            }
+            kcpush((kcLL**) &ptr->tidl->trace.circular, &tmp->next->kc);
+            D_(2, "Adding to circular\n");
           }
+          //Peer ahead for oneMore
+          /*if (tmp->next && tmp->next->next){
+            tIdList* nxtTrace = tmp->next->kc->idflags;
+            if (nxtTrace && !isCircTrace(&nxtTrace, overrideCirc)){ //oneMore
+              kcpush((kcLL**) &nxtTrace->trace.circular, &tmp->next->next->kc);
+              //printTIdList(nxtTrace);
+              //exit(0);
+            }
+          }*/
           ptr = ptr->next;
         }
         destroyTraceVessel(&tloop);
       }
       destroyTIdList(&cTraces, destroyCircular);
-      //ENCLOSE(printTIdList(tmp->kc->idflags); printTIdList(ms->status->traceSet));
       setAsUsed(&tmp->kc->idflags, ms->status->traceSet);
-      //ENCLOSE(printTIdList(tmp->kc->idflags));
       tmp = tmp->next;
       if (firstInRead) firstInRead = false;
     }

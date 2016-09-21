@@ -351,6 +351,17 @@ void pushTraceInVessel(traceVessel** tvp, tIdList** tp){
   ptr->next = (traceVessel*) newTraceLL();
 }
 
+tIdList* _getTrace(tIdList** tp, LISTTYPE i){
+  tIdList* tmp = *tp;
+  while (tmp){
+    if (tmp->trace.n == i){
+      return tmp;
+    }
+    tmp = tmp->next;
+  }
+  return NULL;
+}
+
 traceVessel* _getTraces(tIdList** tp, tIdList* which){
   tIdList* tmp = *tp;
   traceVessel* result = (traceVessel*) newTraceLL();
@@ -437,6 +448,16 @@ void printTraceLL(traceLL* toprint){
   printf("==\n");
 }
 
+bool isCircTrace(tIdList** t, bool extending){
+  tIdList* tmp = *t;
+  while(tmp){
+    if ((!IS(tmp, CIRCULAR) || extending) && IS(tmp, IN_USE)){
+      return true;
+    }
+    tmp = tmp->next;
+  }
+  return false;
+}
 
 tIdList* circTraces(tIdList** t, bool extending, void (*callback)(void**)){
   tIdList* result = NULL;
