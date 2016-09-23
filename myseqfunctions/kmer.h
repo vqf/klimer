@@ -469,6 +469,53 @@ void extendCircUp(tmpKcVessel** kvp){
   }
 }
 
+void checkForLoops(kcLL** tmpp, tIdList* which){
+  kcLL* tmp = *tmpp;
+  while (tmp){
+    traceVessel* t = _getTraces(&tmp->kc->idflags, which);
+    while (t->tidl){
+      printTIdList(t->tidl);
+      if (IS(t->tidl, RESERVED)){
+        SET(t->tidl, IN_USE);
+      }
+      else{
+        SET(t->tidl, RESERVED);
+      }
+      t = t->next;
+    }
+    destroyTraceVessel(&t);
+    tmp = tmp->next;
+  }
+  tmp = *tmpp;
+  while (tmp){
+    traceVessel* t = _getTraces(&tmp->kc->idflags, which);
+    while (t->tidl){
+      UNSET(t->tidl, RESERVED);
+      t = t->next;
+    }
+    destroyTraceVessel(&t);
+    tmp = tmp->next;
+  }
+}
+
+void findTraceSet(memstruct** msp, bool firstInRead, bool lastInRead){
+  memstruct* ms = *msp;
+  kcLL** tmpp = &ms->status->trace;
+  kcLL* tmp = *tmpp;
+  while (tmp){
+    if (ms->status->addExistingTrace){
+      mergeTIdLists(&tmp->kc->idflags, ms->status->traceSet, destroyCircular);
+      if (!firstInRead) unsetAsFirst(&tmp->kc->idflags, ms->status->traceSet);
+      if (!lastInRead)  unsetAsLast(&tmp->kc->idflags, ms->status->traceSet);
+    }
+    else{
+      insertInTIdList(&tmp->kc->idflags, ms->status->cId, destroyCircular);
+      insertInTIdList(&ms->status->traceSet, ms->status->cId, destroyCircular);
+    }
+    tmp = tmp->next;
+  }
+}
+
 void resetTrace(kmerHolder** kp){
   memstruct* ms = (*kp)->ms;
   kcLL** tmpp = &ms->status->trace;
@@ -491,7 +538,6 @@ void resetTrace(kmerHolder** kp){
     D_(2, "Extending up\n");
   }
   if (tmpp && tmp){
-    // If extending up this is the first in a trace
     if (newTrace || ms->status->extendMeUp){
       markFirst = true;
       firstInRead = true;
@@ -501,6 +547,11 @@ void resetTrace(kmerHolder** kp){
       lastInRead = true;
       D_(2, "Got to the end of the read\n");
     }
+    //Find out traceSet
+    findTraceSet(&ms, firstInRead, lastInRead);
+    //Pre-check for loops
+    checkForLoops(&tmp, ms->status->traceSet);
+    // If extending up this is the first in a trace
     kcLL* kcCirc = NULL; // Which kcs in this trace loop
     traceLL* tCirc = newTraceLL(); // Which traces loop
     tmpKcVessel* upXt = NULL;
@@ -516,15 +567,6 @@ void resetTrace(kmerHolder** kp){
         extendingDn = true;
         D_(2, "Extending down\n");
       }
-      if (ms->status->addExistingTrace){
-        mergeTIdLists(&tmp->kc->idflags, ms->status->traceSet, destroyCircular);
-        if (!firstInRead) unsetAsFirst(&tmp->kc->idflags, ms->status->traceSet);
-        if (!lastInRead)  unsetAsLast(&tmp->kc->idflags, ms->status->traceSet);
-      }
-      else{
-        insertInTIdList(&tmp->kc->idflags, ms->status->cId, destroyCircular);
-        insertInTIdList(&ms->status->traceSet, ms->status->cId, destroyCircular);
-      }
       // Check for trace loops
       bool overrideCirc = (extendingUp | extendingDn);
       tIdList* cTraces = circTraces(&tmp->kc->idflags, overrideCirc, destroyCircular);
@@ -538,20 +580,20 @@ void resetTrace(kmerHolder** kp){
         loopingTraces = cTraces; // For oneMore if necessary
         traceVessel* ptr = tloop;
         while (ptr->tidl){
-          //Did not know this one looped
-          if (!ptr->tidl->trace.circular){
-            ptr->tidl->trace.circular = newKcPointer(&tmp->next->kc);
-            D_(2, "Did not know it looped\n");
-          }
-          //Well, now you know
           if (extendingUp){
             tmpKcVessel* prev = newTmpKcVessel(&ptr->tidl->trace, &tmp->next->kc, &upXt);
             upXt = prev;
             D_(2, "Unshifting temp loopers\n");
           }
           else{
-            kcpush((kcLL**) &ptr->tidl->trace.circular, &tmp->next->kc);
-            D_(2, "Adding to circular\n");
+            if (ptr->tidl->trace.circular){
+              ptr->tidl->trace.circular = newKcPointer(&tmp->next->kc);
+              D_(2, "Did not know it looped\n");
+            }
+            else{
+              kcpush((kcLL**) &ptr->tidl->trace.circular, &tmp->next->kc);
+              D_(2, "Adding to circular\n");
+            }
           }
           ptr = ptr->next;
         }

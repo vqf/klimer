@@ -9,9 +9,9 @@ typedef enum { false, true } bool;
 
 
 // Trace flags
-
-#define FIRST_IN_TRACE 0x80
-#define LAST_IN_TRACE  0x40
+#define RESERVED       0x80
+#define FIRST_IN_TRACE 0x08
+#define LAST_IN_TRACE  0x04
 #define CIRCULAR       0x02
 #define IN_USE         0x01
 
