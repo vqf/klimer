@@ -478,6 +478,7 @@ void resetTrace(kmerHolder** kp){
   bool lastInRead  = false;
   bool extendingUp = false;
   bool extendingDn = false;
+  bool oneMore     = false;
   bool newTrace = (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3);
   D_(1, "Resetting trace with status %d\n", ms->status->addExistingTraceStatus);
   if (newTrace){
@@ -503,6 +504,7 @@ void resetTrace(kmerHolder** kp){
     kcLL* kcCirc = NULL; // Which kcs in this trace loop
     traceLL* tCirc = newTraceLL(); // Which traces loop
     tmpKcVessel* upXt = NULL;
+    tIdList* loopingTraces = NULL; // Traces that looped in the previous cycle
     while(tmp){
       D_(2, "Adding kc with uid: %.8x\n", tmp->kc->uid);
       if (extendingUp && isTraceFirst(tmp->kc->idflags, destroyCircular)){
@@ -527,11 +529,13 @@ void resetTrace(kmerHolder** kp){
       bool overrideCirc = (extendingUp | extendingDn);
       tIdList* cTraces = circTraces(&tmp->kc->idflags, overrideCirc, destroyCircular);
       if (tmp->next && cTraces){
+        oneMore = true;
         D_(2, "This kc loops with override %u\n", overrideCirc);
         pushTrace(&tCirc, cTraces, destroyCircular);
         kcpush(&kcCirc, &tmp->kc);
         nextTraceLL(&tCirc);
         traceVessel* tloop = _getTraces(&tmp->kc->idflags, cTraces);
+        loopingTraces = cTraces; // For oneMore if necessary
         traceVessel* ptr = tloop;
         while (ptr->tidl){
           //Did not know this one looped
@@ -549,18 +553,22 @@ void resetTrace(kmerHolder** kp){
             kcpush((kcLL**) &ptr->tidl->trace.circular, &tmp->next->kc);
             D_(2, "Adding to circular\n");
           }
-          //Peer ahead for oneMore
-          /*if (tmp->next && tmp->next->next){
-            tIdList* nxtTrace = tmp->next->kc->idflags;
-            if (nxtTrace && !isCircTrace(&nxtTrace, overrideCirc)){ //oneMore
-              kcpush((kcLL**) &nxtTrace->trace.circular, &tmp->next->next->kc);
-              //printTIdList(nxtTrace);
-              //exit(0);
-            }
-          }*/
           ptr = ptr->next;
         }
         destroyTraceVessel(&tloop);
+      }
+      else if (oneMore && loopingTraces){
+        oneMore = false;
+        traceVessel* ct = _getTraces(&tmp->kc->idflags, loopingTraces);
+        if (extendingUp){
+          tmpKcVessel* prev = newTmpKcVessel(&ct->tidl->trace, &tmp->next->kc, &upXt);
+          upXt = prev;
+          D_(2, "Unshifting temp loopers (oneMore)\n");
+        }
+        else{
+          kcpush((kcLL**) &ct->tidl->trace.circular, &tmp->next->kc);
+          D_(2, "Adding to circular (oneMore)\n");
+        }
       }
       destroyTIdList(&cTraces, destroyCircular);
       setAsUsed(&tmp->kc->idflags, ms->status->traceSet);
