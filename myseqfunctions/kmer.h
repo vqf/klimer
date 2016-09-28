@@ -473,15 +473,16 @@ void checkForLoops(kcLL** tmpp, tIdList* which){
   kcLL* tmp = *tmpp;
   while (tmp){
     traceVessel* t = _getTraces(&tmp->kc->idflags, which);
-    while (t->tidl){
-      printTIdList(t->tidl);
-      if (IS(t->tidl, RESERVED)){
-        SET(t->tidl, IN_USE);
+    traceVessel* pointer = t;
+    while (pointer->tidl){
+      printTIdList(pointer->tidl);
+      if (IS(pointer->tidl, RESERVED)){
+        SET(pointer->tidl, IN_USE);
       }
       else{
-        SET(t->tidl, RESERVED);
+        SET(pointer->tidl, RESERVED);
       }
-      t = t->next;
+      pointer = pointer->next;
     }
     destroyTraceVessel(&t);
     tmp = tmp->next;
@@ -489,9 +490,10 @@ void checkForLoops(kcLL** tmpp, tIdList* which){
   tmp = *tmpp;
   while (tmp){
     traceVessel* t = _getTraces(&tmp->kc->idflags, which);
-    while (t->tidl){
-      UNSET(t->tidl, RESERVED);
-      t = t->next;
+    traceVessel* pointer = t;
+    while (pointer->tidl){
+      UNSET(pointer->tidl, RESERVED);
+      pointer = pointer->next;
     }
     destroyTraceVessel(&t);
     tmp = tmp->next;
@@ -526,15 +528,19 @@ void resetTrace(kmerHolder** kp){
   bool extendingUp = false;
   bool extendingDn = false;
   bool oneMore     = false;
+  bool canCheckLoop = true;
+  tIdList* loopingTraces = NULL; // Traces that looped in the previous cycle
   bool newTrace = (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3);
   D_(1, "Resetting trace with status %d\n", ms->status->addExistingTraceStatus);
   if (newTrace){
     ms->status->addExistingTrace = false;
+    canCheckLoop = true;
     D_(2, "This is a new trace\n");
   }
   // Are we extending from upstream?
   if (ms->status->extendMeUp && !newTrace){
     extendingUp = true; // Until we get to first_in_trace
+    canCheckLoop = true;
     D_(2, "Extending up\n");
   }
   if (tmpp && tmp){
@@ -555,64 +561,62 @@ void resetTrace(kmerHolder** kp){
     kcLL* kcCirc = NULL; // Which kcs in this trace loop
     traceLL* tCirc = newTraceLL(); // Which traces loop
     tmpKcVessel* upXt = NULL;
-    tIdList* loopingTraces = NULL; // Traces that looped in the previous cycle
     while(tmp){
       D_(2, "Adding kc with uid: %.8x\n", tmp->kc->uid);
       if (extendingUp && isTraceFirst(tmp->kc->idflags, destroyCircular)){
         extendingUp = false; // Now download the contents of upXt
         extendCircUp(&upXt);
+        canCheckLoop = false;
         D_(2, "We are getting into known territory: %.8x\n", tmp->kc->uid);
       }
       if (!extendingDn && isTraceLast(tmp->kc->idflags, destroyCircular)){
         extendingDn = true;
+        canCheckLoop = true;
         D_(2, "Extending down\n");
       }
       // Check for trace loops
-      bool overrideCirc = (extendingUp | extendingDn);
-      tIdList* cTraces = circTraces(&tmp->kc->idflags, overrideCirc, destroyCircular);
-      if (tmp->next && cTraces){
-        oneMore = true;
-        D_(2, "This kc loops with override %u\n", overrideCirc);
-        pushTrace(&tCirc, cTraces, destroyCircular);
-        kcpush(&kcCirc, &tmp->kc);
-        nextTraceLL(&tCirc);
-        traceVessel* tloop = _getTraces(&tmp->kc->idflags, cTraces);
-        loopingTraces = cTraces; // For oneMore if necessary
-        traceVessel* ptr = tloop;
-        while (ptr->tidl){
-          if (extendingUp){
-            tmpKcVessel* prev = newTmpKcVessel(&ptr->tidl->trace, &tmp->next->kc, &upXt);
-            upXt = prev;
-            D_(2, "Unshifting temp loopers\n");
-          }
-          else{
-            if (ptr->tidl->trace.circular){
-              ptr->tidl->trace.circular = newKcPointer(&tmp->next->kc);
-              D_(2, "Did not know it looped\n");
+      if (canCheckLoop){
+        bool overrideCirc = (extendingUp | extendingDn);
+        tIdList* cTraces = circTraces(&tmp->kc->idflags, overrideCirc, destroyCircular);
+        if (tmp->next && cTraces){
+          oneMore = true;
+          D_(2, "This kc loops with override %u\n", overrideCirc);
+          pushTrace(&tCirc, cTraces, destroyCircular);
+          kcpush(&kcCirc, &tmp->kc);
+          nextTraceLL(&tCirc);
+          traceVessel* tloop = _getTraces(&tmp->kc->idflags, cTraces);
+          destroyTIdList(&loopingTraces, destroyCircular);
+          loopingTraces = cTraces; // For oneMore if necessary
+          traceVessel* ptr = tloop;
+          while (ptr->tidl){
+            if (extendingUp){
+              tmpKcVessel* prev = newTmpKcVessel(&ptr->tidl->trace, &tmp->next->kc, &upXt);
+              upXt = prev;
+              D_(2, "Unshifting temp loopers\n");
             }
             else{
               kcpush((kcLL**) &ptr->tidl->trace.circular, &tmp->next->kc);
               D_(2, "Adding to circular\n");
             }
+            ptr = ptr->next;
           }
-          ptr = ptr->next;
+          destroyTraceVessel(&tloop);
         }
-        destroyTraceVessel(&tloop);
+        else if (oneMore && loopingTraces){
+          oneMore = false;
+          traceVessel* ct = _getTraces(&tmp->kc->idflags, loopingTraces);
+          if (extendingUp){
+            tmpKcVessel* prev = newTmpKcVessel(&ct->tidl->trace, &tmp->next->kc, &upXt);
+            upXt = prev;
+            D_(2, "Unshifting temp loopers (oneMore)\n");
+          }
+          else{
+            kcpush((kcLL**) &ct->tidl->trace.circular, &tmp->next->kc);
+            D_(2, "Adding to circular (oneMore)\n");
+          }
+          destroyTraceVessel(&ct);
+        }
       }
-      else if (oneMore && loopingTraces){
-        oneMore = false;
-        traceVessel* ct = _getTraces(&tmp->kc->idflags, loopingTraces);
-        if (extendingUp){
-          tmpKcVessel* prev = newTmpKcVessel(&ct->tidl->trace, &tmp->next->kc, &upXt);
-          upXt = prev;
-          D_(2, "Unshifting temp loopers (oneMore)\n");
-        }
-        else{
-          kcpush((kcLL**) &ct->tidl->trace.circular, &tmp->next->kc);
-          D_(2, "Adding to circular (oneMore)\n");
-        }
-      }
-      destroyTIdList(&cTraces, destroyCircular);
       setAsUsed(&tmp->kc->idflags, ms->status->traceSet);
       tmp = tmp->next;
       if (firstInRead) firstInRead = false;
@@ -648,6 +652,7 @@ void resetTrace(kmerHolder** kp){
       unsetInUse(&tmp->kc->idflags, ms->status->traceSet);
       tmp = tmp->next;
     }
+    destroyTIdList(&loopingTraces, destroyCircular);
     destroyTraceLL(&tCirc, destroyCircular);
     resetKcLL(&kcCirc);
   }
