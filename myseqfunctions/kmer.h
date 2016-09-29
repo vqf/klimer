@@ -34,6 +34,7 @@ typedef enum { false, true } bool;
 // a -> tId object
 // b -> flag to operate
 int _CTR = 1;
+uint32_t _UID = 0;
 #define SCALAR(a) _CTR = 1; \
                   while (a->next){\
                     _CTR++; \
@@ -44,6 +45,7 @@ int _CTR = 1;
 #define SETKC(a, b) (((a)->flags = (a)->flags | b))
 #define UNSETKC(a, b) ((a)->flags = (a)->flags ^ b)
 #define ISKC(a, b) ((a)->flags & b)
+#define GETUID _UID; _UID++;
 
 
 
@@ -120,6 +122,7 @@ void resetKcLL(kcLL**);
 void printKmerConnector(kmerConnector*, char*);
 void printKmerConnectors(memstruct*, uint32_t);
 void printKc(memstruct*);
+void printRead(memstruct*);
 void printKcLL(memstruct*, kcLL*);
 void destroyTIdList(tIdList**, void (*callback)(void**));
 void delConnector(kmerConnector**);
@@ -475,8 +478,7 @@ void checkForLoops(kcLL** tmpp, tIdList* which){
     traceVessel* t = _getTraces(&tmp->kc->idflags, which);
     traceVessel* pointer = t;
     while (pointer->tidl){
-      printTIdList(pointer->tidl);
-      if (IS(pointer->tidl, RESERVED)){
+      if (IS(pointer->tidl, RESERVED) && !IS(pointer->tidl, IN_USE)){
         SET(pointer->tidl, IN_USE);
       }
       else{
@@ -492,7 +494,7 @@ void checkForLoops(kcLL** tmpp, tIdList* which){
     traceVessel* t = _getTraces(&tmp->kc->idflags, which);
     traceVessel* pointer = t;
     while (pointer->tidl){
-      UNSET(pointer->tidl, RESERVED);
+      if (IS(pointer->tidl, RESERVED)) UNSET(pointer->tidl, RESERVED);
       pointer = pointer->next;
     }
     destroyTraceVessel(&t);
@@ -518,6 +520,34 @@ void findTraceSet(memstruct** msp, bool firstInRead, bool lastInRead){
   }
 }
 
+void postProcess(memstruct** msp){
+  memstruct* ms = *msp;
+  kcLL** tmpp = &ms->status->trace;
+  kcLL* tmp = *tmpp;
+  tIdList* lTraces = ms->status->traceSet;
+  while (lTraces){
+    tIdList* t = _getTrace(&tmp->kc->idflags, lTraces->trace.n);
+    while (tmp && tmp->next){
+      bool oneMore = false;
+      while (tmp->next && IS(t, CIRCULAR)){
+        if (!oneMore) oneMore = true;
+        tmp = tmp->next;
+        if (tmp) t = _getTrace(&tmp->kc->idflags, lTraces->trace.n);
+      }
+      if (tmp && tmp->next){
+        if (oneMore){
+          kcpush((kcLL**) &t->trace.circular, &tmp->next->kc);
+        }
+        tmp = tmp->next;
+        if (tmp) t = _getTrace(&tmp->kc->idflags, lTraces->trace.n);
+      }
+      tmp = tmp->next;
+      if (tmp) t = _getTrace(&tmp->kc->idflags, lTraces->trace.n);
+    }
+    lTraces = lTraces->next;
+  }
+}
+
 void resetTrace(kmerHolder** kp){
   memstruct* ms = (*kp)->ms;
   kcLL** tmpp = &ms->status->trace;
@@ -527,9 +557,8 @@ void resetTrace(kmerHolder** kp){
   bool lastInRead  = false;
   bool extendingUp = false;
   bool extendingDn = false;
-  bool oneMore     = false;
+  bool hasLoops    = false;
   bool canCheckLoop = true;
-  tIdList* loopingTraces = NULL; // Traces that looped in the previous cycle
   bool newTrace = (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3);
   D_(1, "Resetting trace with status %d\n", ms->status->addExistingTraceStatus);
   if (newTrace){
@@ -557,6 +586,7 @@ void resetTrace(kmerHolder** kp){
     findTraceSet(&ms, firstInRead, lastInRead);
     //Pre-check for loops
     checkForLoops(&tmp, ms->status->traceSet);
+    printRead(ms);
     // If extending up this is the first in a trace
     kcLL* kcCirc = NULL; // Which kcs in this trace loop
     traceLL* tCirc = newTraceLL(); // Which traces loop
@@ -579,14 +609,12 @@ void resetTrace(kmerHolder** kp){
         bool overrideCirc = (extendingUp | extendingDn);
         tIdList* cTraces = circTraces(&tmp->kc->idflags, overrideCirc, destroyCircular);
         if (tmp->next && cTraces){
-          oneMore = true;
+          hasLoops = true;
           D_(2, "This kc loops with override %u\n", overrideCirc);
           pushTrace(&tCirc, cTraces, destroyCircular);
           kcpush(&kcCirc, &tmp->kc);
           nextTraceLL(&tCirc);
           traceVessel* tloop = _getTraces(&tmp->kc->idflags, cTraces);
-          destroyTIdList(&loopingTraces, destroyCircular);
-          loopingTraces = cTraces; // For oneMore if necessary
           traceVessel* ptr = tloop;
           while (ptr->tidl){
             if (extendingUp){
@@ -602,20 +630,10 @@ void resetTrace(kmerHolder** kp){
           }
           destroyTraceVessel(&tloop);
         }
-        else if (oneMore && loopingTraces){
-          oneMore = false;
-          traceVessel* ct = _getTraces(&tmp->kc->idflags, loopingTraces);
-          if (extendingUp){
-            tmpKcVessel* prev = newTmpKcVessel(&ct->tidl->trace, &tmp->next->kc, &upXt);
-            upXt = prev;
-            D_(2, "Unshifting temp loopers (oneMore)\n");
-          }
-          else{
-            kcpush((kcLL**) &ct->tidl->trace.circular, &tmp->next->kc);
-            D_(2, "Adding to circular (oneMore)\n");
-          }
-          destroyTraceVessel(&ct);
-        }
+        destroyTIdList(&cTraces, destroyCircular);
+      }
+      else{
+        D_(2, "Cannot check for loop\n");
       }
       setAsUsed(&tmp->kc->idflags, ms->status->traceSet);
       tmp = tmp->next;
@@ -652,10 +670,10 @@ void resetTrace(kmerHolder** kp){
       unsetInUse(&tmp->kc->idflags, ms->status->traceSet);
       tmp = tmp->next;
     }
-    destroyTIdList(&loopingTraces, destroyCircular);
     destroyTraceLL(&tCirc, destroyCircular);
     resetKcLL(&kcCirc);
   }
+  if (hasLoops) postProcess(&ms);
   /* Clean for next trace */
   ms->status->cId = 0;
   destroyTIdList(&ms->status->traceSet, destroyCircular);
@@ -699,7 +717,7 @@ uint32_t rnd32(){
 kmerConnector* newKmerConnector(uint32_t to){
   kmerConnector* result = (kmerConnector*) calloc(1, sizeof(kmerConnector));
   result->dest    = to;
-  result->uid     = rnd32();
+  result->uid     = GETUID;
   result->n       = 0;
   result->idflags = NULL;
   result->next    = NULL;
@@ -741,6 +759,7 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
   memstruct* ms = *msp;
   kmerConnector* kc = *kcp;
   tIdList* fst = traceFirst(kc->idflags, destroyCircular);
+  //D_(2, "yo\t"); printTIdList(fst);
   if (kc->idflags){
     LISTTYPE m = maxInList(kc->idflags);
     if (ms->status->cId <= m){
@@ -751,6 +770,7 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
     if (kc->idflags){
       if (fst){
         ms->status->traceSet = fst;
+        fst = NULL;
         ms->status->extendMeUp = true;
         ms->status->addExistingTraceStatus = 1;
         D_(2, "Found an existing trace: 0 to 1\n");
@@ -765,18 +785,19 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
       else{
         ms->status->addExistingTraceStatus = 3;
         ms->status->extendMeUp = false;
-        D_(2, "Found existing trace, not first: 0 to 3\n");
+        D_(2, "Found existing trace, not first: to 3\n");
       }
     }
   }
   else if (ms->status->addExistingTrace){
     if (ms->status->addExistingTraceStatus == 1){
       intersectTIdLists(&ms->status->traceSet, kc->idflags, destroyCircular);
+      printTIdList(kc->idflags);
       if (!ms->status->traceSet){
         if (ms->status->extendMe){
           ms->status->addExistingTraceStatus = 2;
           destroyTIdList(&ms->status->traceSet, destroyCircular);
-          ms->status->traceSet = ms->status->extendMe;
+          ms->status->traceSet = copyTIdList(ms->status->extendMe, destroyCircular);
           ms->status->extendMeDn = true;
           D_(2, "Extending existing traces: 1 to 2\n");
         }
@@ -789,13 +810,21 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
     }
     else if (ms->status->addExistingTraceStatus == 2){
       if (kc->idflags){
-        ms->status->addExistingTraceStatus = 3;
-        ms->status->extendMeUp = false;
-        ms->status->extendMeDn = false;
-        D_(2, "Conflict: 2 to 3\n");
+        if (isIncluded(&ms->status->traceSet, &kc->idflags)){
+          destroyTIdList(&ms->status->traceSet, destroyCircular);
+          ms->status->traceSet = copyTIdList(kc->idflags, destroyCircular);
+          D_(2, "No conflict, ids compatible\n");
+        }
+        else{
+          ms->status->addExistingTraceStatus = 3;
+          ms->status->extendMeUp = false;
+          ms->status->extendMeDn = false;
+          D_(2, "Conflict: 2 to 3\n");
+        }
       }
     }
   }
+  destroyTIdList(&fst, destroyCircular);
   D_(2, "TraceStatus: %d\n", ms->status->addExistingTraceStatus);
 }
 
@@ -823,6 +852,7 @@ kmerConnector* getConnector(memstruct** msp, uint32_t from, uint32_t to){
     }
   }
   //ms->status->cId = maxInList(ms->status->traceSet);
+  destroyTIdList(&ms->status->extendMe, destroyCircular);
   ms->status->extendMe = traceLast(result->idflags, destroyCircular);
   kcpush(&ms->status->trace, &result);
   return result;
@@ -850,6 +880,34 @@ void addRelationship(kmerHolder** kp, uint32_t to){
 void printKmerConnector(kmerConnector* kc, char* seq){
   printf("Uid: %.8x\n", kc->uid);
   printf("Dest: %s\nN: %d\nIds: ", seq, kc->n);
+}
+
+void printRead(memstruct* ms){
+  kcLL* tmp = ms->status->trace;
+  while (tmp){
+    printf("^^^\n");
+    kmerConnector* kc = tmp->kc;
+    char* seq = (char*) calloc(ms->kmerSize + 1, sizeof(char));
+    pos2seq(&ms, kc->dest, seq);
+    printKmerConnector(kc, seq);
+    printTIdList(kc->idflags);
+    tIdList* tlist = kc->idflags;
+    while (tlist){
+      kcLL* tmp = (kcLL*) tlist->trace.circular;
+      if (tmp){
+        printf("Circ%u: ", tlist->trace.n);
+        while (tmp){
+          printf("%.8x\t", tmp->kc->uid);
+          tmp = tmp->next;
+        }
+        printf("\n");
+      }
+      tlist = tlist->next;
+    }
+    free(seq);
+    tmp = tmp->next;
+    printf("vvv\n");
+  }
 }
 
 void printKmerConnectors(memstruct* ms, uint32_t pos){

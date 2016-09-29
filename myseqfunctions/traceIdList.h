@@ -247,6 +247,22 @@ bool isInTIdList(tIdList* arr, LISTTYPE val){
   return result;
 }
 
+bool isIncluded(tIdList** universe, tIdList** subset){
+  tIdList* a1 = *universe;
+  tIdList* a2 = *subset;
+  if (a2 && !a1) return false;
+  if (a1->trace.n > a2->trace.n) return false;
+  while (a2){
+    while (a1 && a1->trace.n < a2->trace.n){
+      a1 = a1->next;
+    }
+    if (a1->trace.n != a2->trace.n){
+      return false;
+    }
+    a2 = a2->next;
+  }
+  return true;
+}
 
 
 //Pushes trace copy into the last traceLL
