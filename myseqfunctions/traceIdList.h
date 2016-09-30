@@ -33,6 +33,7 @@ typedef enum { false, true } bool;
 typedef struct tId{
   LISTTYPE n;
   uint8_t flag;
+  uint16_t nReads; // Number of events supporting connection
   void* circular; // Only used when a trace references a kmer more than once
 } tId;
 
@@ -57,10 +58,10 @@ void printTIdList(tIdList* a){
     printf("Null tIdList\n");
     return;
   }
-  printf("[%d, %u]", a->trace.n, (short unsigned) a->trace.flag);
+  printf("[%d, %.1x] (%u)", a->trace.n, a->trace.flag, (short unsigned) a->trace.nReads);
   while(a->next){
     a = a->next;
-    printf(", [%d, %u]", a->trace.n, (short unsigned) a->trace.flag);
+    printf(", [%d, %.1x] (%u)", a->trace.n, a->trace.flag, (short unsigned) a->trace.nReads);
   }
   printf("\n");
 }

@@ -2,7 +2,7 @@
 #define KMER_H_INCLUDED
 
 #ifndef DEBUG
-#define DEBUG 2
+#define DEBUG 0
 #endif /* DEBUG */
 
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
@@ -484,6 +484,7 @@ void checkForLoops(kcLL** tmpp, tIdList* which){
       else{
         SET(pointer->tidl, RESERVED);
       }
+      pointer->tidl->trace.nReads++;
       pointer = pointer->next;
     }
     destroyTraceVessel(&t);
@@ -586,7 +587,7 @@ void resetTrace(kmerHolder** kp){
     findTraceSet(&ms, firstInRead, lastInRead);
     //Pre-check for loops
     checkForLoops(&tmp, ms->status->traceSet);
-    printRead(ms);
+    //printRead(ms);
     // If extending up this is the first in a trace
     kcLL* kcCirc = NULL; // Which kcs in this trace loop
     traceLL* tCirc = newTraceLL(); // Which traces loop
@@ -792,7 +793,6 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
   else if (ms->status->addExistingTrace){
     if (ms->status->addExistingTraceStatus == 1){
       intersectTIdLists(&ms->status->traceSet, kc->idflags, destroyCircular);
-      printTIdList(kc->idflags);
       if (!ms->status->traceSet){
         if (ms->status->extendMe){
           ms->status->addExistingTraceStatus = 2;
@@ -893,12 +893,12 @@ void printRead(memstruct* ms){
     printTIdList(kc->idflags);
     tIdList* tlist = kc->idflags;
     while (tlist){
-      kcLL* tmp = (kcLL*) tlist->trace.circular;
-      if (tmp){
+      kcLL* tmpll = (kcLL*) tlist->trace.circular;
+      if (tmpll){
         printf("Circ%u: ", tlist->trace.n);
-        while (tmp){
-          printf("%.8x\t", tmp->kc->uid);
-          tmp = tmp->next;
+        while (tmpll){
+          printf("%.8x\t", tmpll->kc->uid);
+          tmpll = tmpll->next;
         }
         printf("\n");
       }
