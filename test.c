@@ -1,5 +1,6 @@
 #include <assert.h>
 #include "myseqfunctions/kmer.h"
+#include "myseqfunctions/kmerIO.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,6 +38,8 @@ int main(int argc,char** argv){
   }
   resetTrace(&km);
   summarize(km->ms);
+  uint32_t n = writeOut(km->ms, "/users/vqf/desktop/tmp.txt");
+  printf("%lu bytes written\n", n);
   //drawMs(km->ms, "/Users/vqf/Desktop/delme.txt");
   destroyKh(&km);
 }

@@ -955,10 +955,6 @@ void printMs(memstruct* ms){
  * kmerConnector functions //
  */
 
-void writeOut(memstruct* ms, char* fname){
-  FILE* fout = fopen(fname, "w");
-  fwrite(ms->kmerArray, ms->nBytes, 1, fout);
-}
 
 /*void readIn(memstruct* ms, char* fname){
   FILE* file = fopen(fname, "r");
