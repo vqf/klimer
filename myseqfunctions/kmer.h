@@ -127,6 +127,15 @@ void printKcLL(memstruct*, kcLL*);
 void destroyTIdList(tIdList**, void (*callback)(void**));
 void delConnector(kmerConnector**);
 
+uint32_t lengthKcll(kcLL** lp){
+  kcLL* l = *lp;
+  uint32_t result = 0;
+  while(l){
+    result++;
+    l = l->next;
+  }
+  return result;
+}
 
 tmpKcVessel* newTmpKcVessel(tId* dst, kmerConnector** lp, tmpKcVessel** nxt){
   tmpKcVessel* tonext = NULL;

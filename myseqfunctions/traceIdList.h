@@ -33,7 +33,7 @@ typedef enum { false, true } bool;
 typedef struct tId{
   LISTTYPE n;
   uint8_t flag;
-  uint16_t nReads; // Number of events supporting connection
+  uint32_t nReads; // Number of events supporting connection
   void* circular; // Only used when a trace references a kmer more than once
 } tId;
 
@@ -52,6 +52,16 @@ typedef traceLL traceVessel; //TraceVessel only takes pointers and its tidl is
                              // not freed
 
 void printTraceLL(traceLL*);
+
+uint32_t tIdListLength(tIdList** tidp){
+  tIdList* tidl = *tidp;
+  uint32_t result = 0;
+  while (tidl){
+    result++;
+    tidl = tidl->next;
+  }
+  return result;
+}
 
 void printTIdList(tIdList* a){
   if (!a){

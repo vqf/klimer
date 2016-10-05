@@ -38,8 +38,7 @@ int main(int argc,char** argv){
   }
   resetTrace(&km);
   summarize(km->ms);
-  uint32_t n = writeOut(km->ms, "/users/vqf/desktop/tmp.txt");
-  printf("%lu bytes written\n", n);
+  writeOut(&km->ms, "/users/vqf/desktop/tmp.txt");
   //drawMs(km->ms, "/Users/vqf/Desktop/delme.txt");
   destroyKh(&km);
 }
