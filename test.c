@@ -11,7 +11,7 @@
 
 int main(int argc,char** argv){
   srand((unsigned) time(NULL));
-  kmerHolder *km = initKmer(11);
+  kmerHolder *km = initKmer(11, 4);
   char* dtext = "GTAAAAAAAAAAAAAAACGTACGTACGAGCT";
   uint8_t l = strlen(dtext);
   for (int i = 0; i < l; i++){
@@ -38,7 +38,7 @@ int main(int argc,char** argv){
   }
   resetTrace(&km);
   summarize(km->ms);
-  writeOut(&km->ms, "/users/vqf/desktop/tmp.txt");
+  writeOut(&km, "/users/vqf/desktop/tmp.txt");
   //drawMs(km->ms, "/Users/vqf/Desktop/delme.txt");
   destroyKh(&km);
 }

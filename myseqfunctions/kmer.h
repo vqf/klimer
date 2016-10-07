@@ -111,6 +111,7 @@ typedef struct kh{  //Used to read kmers
   memstruct* ms;
   uint32_t posInMemBuffer;
   uint8_t kmerSize;
+  uint8_t nBases;
   uint32_t cVal;
 } kmerHolder;
 
@@ -1044,15 +1045,25 @@ uint32_t updateKmer(kmerHolder** kp, char* b, void (*callback)(kmerHolder**, uin
   return result;
 }
 
-kmerHolder* initKmer(uint8_t kmerSize){
+kmerHolder* initKmer(uint8_t kmerSize, uint8_t nBases){
   kmerHolder* result = (kmerHolder*) malloc(sizeof(kmerHolder));
+  if (nBases == 4){
+    result->ms = initFourBase();
+    result->nBases = 4;
+  }
+  else if (nBases == 5){
+    result->ms = initFiveBase();
+    result->nBases = 5;
+  }
+  else{
+    fprintf(stderr, "At this point, only four (ACGT) or five (ACGTN) bases are accepted");
+  }
   result->kmerSize = kmerSize;
   if (kmerSize >= KMERBUFFERSIZE){
     fprintf(stderr, "kmer size too large, max is %d", KMERBUFFERSIZE);
     exit(1);
   }
   result->buffer = (unsigned char*) calloc(KMERBUFFERSIZE, sizeof(unsigned char));
-  result->ms = initFourBase();
   setKmerArray(&result, kmerSize);
   result->posInMemBuffer = 0;
   result->cVal = 0;
