@@ -31,7 +31,9 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
+		<Unit filename="myseqfunctions/debugFileIO.h" />
 		<Unit filename="myseqfunctions/kmer.h" />
+		<Unit filename="myseqfunctions/kmerIO.h" />
 		<Unit filename="myseqfunctions/traceIdList.h" />
 		<Unit filename="test.c">
 			<Option compilerVar="CC" />

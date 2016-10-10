@@ -49,7 +49,9 @@
 			<Option target="Debug" />
 			<Option target="debug" />
 		</Unit>
+		<Unit filename="myseqfunctions/debugFileIO.h" />
 		<Unit filename="myseqfunctions/kmer.h" />
+		<Unit filename="myseqfunctions/kmerIO.h" />
 		<Unit filename="myseqfunctions/traceIdList.h" />
 		<Extensions>
 			<code_completion />

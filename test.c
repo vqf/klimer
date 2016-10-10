@@ -39,6 +39,10 @@ int main(int argc,char** argv){
   resetTrace(&km);
   summarize(km->ms);
   writeOut(&km, "/users/vqf/desktop/tmp.txt");
+  printf("Written\n");
+  kmerHolder* khr = readIn("/users/vqf/desktop/tmp.txt");
+  printf("Read\n");
+  summarize(khr->ms);
   //drawMs(km->ms, "/Users/vqf/Desktop/delme.txt");
   destroyKh(&km);
 }

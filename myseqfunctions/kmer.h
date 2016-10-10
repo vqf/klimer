@@ -842,7 +842,9 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
 kmerConnector* getConnector(memstruct** msp, uint32_t from, uint32_t to){
   memstruct *ms = *msp;
   kmerConnector* result = ms->kmerArray[from];
+  D_(2, "Getting connector from %lu to %lu\n", from, to);
   if (!result){ // This connector did not exist
+    D_(2, "This is a new one\n");
     ms->kmerArray[from] = newKmerConnector(to);
     result = ms->kmerArray[from];
     _existingTrace(msp, &result);
@@ -852,12 +854,14 @@ kmerConnector* getConnector(memstruct** msp, uint32_t from, uint32_t to){
       result = result->next;
     }
     if (result->dest == to){
+      D_(2, "Oh, you mean this one\n");
       _existingTrace(msp, &result);
     }
     else{ // This connector did not exist
       kmerConnector* nkc = newKmerConnector(to);
       result->next = nkc;
       result = result->next;
+      D_(2, "New destination\n");
       _existingTrace(msp, &result);
     }
   }
