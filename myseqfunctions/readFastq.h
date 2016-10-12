@@ -1,6 +1,13 @@
+#include <sys/types.h>
+
+#ifndef _LARGEFILE64_SOURCE
+#define _LARGEFILE64_SOURCE
+#endif /* _LARGEFILE64_SOURCE */
+
 #include <zlib.h>
 #define NAMESIZE 0xFFFF
 #define MAXREAD 0xFFFF
+
 
 #ifndef BOOL
 #define BOOL
@@ -11,6 +18,7 @@ typedef enum { normal, gzipped } instream;
 typedef struct fqr{
   FILE* fp;
   gzFile* zfp;
+  char* fileName;
   char* seqName;
   char* fastaSeq;
   char* comments;
@@ -20,8 +28,34 @@ typedef struct fqr{
   uint32_t seqlen;
 } fastqReader;
 
+/*uint64_t fSize(fastqReader** fqp){
+  fastqReader* fqr = *fqp;
+  uint64_t result = 0;
+  FILE * f = fopen(fqr->fileName, "rb");
+  fseek(f, 0, SEEK_END);
+  result = (uint64_t) ftell(f);
+  fclose(f);
+  return result;
+}
+
+uint8_t doTell(fastqReader** fqp){ //Percentage read in file
+  fastqReader* fqr = *fqp;
+  uint8_t result = 0;
+  uint64_t fpos = 0;
+  if (fqr->type == gzipped){
+    fpos = (uint64_t) gzoffset(*(fqr->zfp));
+  }
+  else{
+    fpos = (uint64_t) ftell(fqr->fp);
+  }
+  uint64_t fsz = fSize(&fqr);
+  result = (uint8_t) (fpos / ((uint64_t) (fsz / 100)));
+  return result;
+}*/
+
 fastqReader* initFastqReader(char* fName){
   fastqReader* result = calloc(1, sizeof(fastqReader));
+  result->fileName = fName;
   result->seqName  = calloc(NAMESIZE, sizeof(char));
   result->fastaSeq = calloc(MAXREAD, sizeof(char));
   result->comments = calloc(NAMESIZE, sizeof(char));
@@ -50,6 +84,7 @@ fastqReader* initFastqReader(char* fName){
       result->fp = fip;
     }
     else if (result->type == gzipped){
+      fclose(fip);
       gzFile zfip = gzopen(fName, "r");
       result->zfp = &zfip;
       //fprintf(stderr, "Gzipped\n");
@@ -61,7 +96,8 @@ fastqReader* initFastqReader(char* fName){
   return result;
 }
 
-void _resetFq(fastqReader* fq){
+void _resetFq(fastqReader** fqp){
+  fastqReader* fq = *fqp;
   fq->pos = 0;
   fq->seqlen = strlen(fq->fastaSeq);
 }
@@ -77,7 +113,8 @@ instream ftype(fastqReader* fq){
   return fq->type;
 }
 
-bool getNextFqRead(fastqReader* fq){
+bool getNextFqRead(fastqReader** fqp){
+  fastqReader* fq = *fqp;
   bool result = false;
   if (fq == NULL){
     fprintf(stderr, "Non-existent fastqReader\n");
@@ -89,7 +126,7 @@ bool getNextFqRead(fastqReader* fq){
         gzgets(*fq->zfp, fq->comments, NAMESIZE) &&
         gzgets(*fq->zfp, fq->quals,     MAXREAD)
         ){
-      _resetFq(fq);
+      _resetFq(&fq);
       result = true;
     }
   }
@@ -98,13 +135,14 @@ bool getNextFqRead(fastqReader* fq){
             fgets(fq->comments, NAMESIZE, fq->fp) &&
             fgets(fq->quals,     MAXREAD, fq->fp)
             ){
-    _resetFq(fq);
+    _resetFq(&fq);
     result = true;
   }
   return result;
 }
 
-char getNextFqBase(fastqReader* fq){
+char getNextFqBase(fastqReader** fqp){
+  fastqReader* fq = *fqp;
   char result = '\0';
   if (!fq->seqlen || fq->pos >= fq->seqlen ){
     return result;
@@ -114,7 +152,8 @@ char getNextFqBase(fastqReader* fq){
   return result;
 }
 
-char getNextFqQual(fastqReader* fq){
+char getNextFqQual(fastqReader** fqp){
+  fastqReader* fq = *fqp;
   char result = '\0';
   if (!fq->seqlen || fq->pos >= fq->seqlen ){
     return result;
@@ -124,3 +163,17 @@ char getNextFqQual(fastqReader* fq){
   return result;
 }
 
+void destroyFastqReader(fastqReader** fqrp){
+  fastqReader* fqr = *fqrp;
+  free(fqr->comments);
+  free(fqr->fastaSeq);
+  free(fqr->quals);
+  free(fqr->seqName);
+  if (fqr->type == normal){
+    fclose(fqr->fp);
+  }
+  else if (fqr->type == gzipped){
+    gzclose(*(fqr->zfp));
+  }
+  free(fqr);
+}

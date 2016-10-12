@@ -171,11 +171,9 @@ tIdList* copyTIdList(tIdList* tocopy, void (*callback)(void**)){
   if (!tocopy){
     return result;
   }
-  LISTTYPE n = tocopy->trace.n;
-  result = newTIdList(n);
   tIdList* tmp = tocopy;
-  while(tmp->next){
-    insertInTIdList(&result, tmp->next->trace.n, callback);
+  while(tmp){
+    insertInTIdList(&result, tmp->trace.n, callback);
     tmp = tmp->next;
   }
   return result;
@@ -261,13 +259,13 @@ bool isInTIdList(tIdList* arr, LISTTYPE val){
 bool isIncluded(tIdList** universe, tIdList** subset){
   tIdList* a1 = *universe;
   tIdList* a2 = *subset;
-  if (a2 && !a1) return false;
+  if (!a1 || !a2) return false;
   if (a1->trace.n > a2->trace.n) return false;
   while (a2){
     while (a1 && a1->trace.n < a2->trace.n){
       a1 = a1->next;
     }
-    if (a1->trace.n != a2->trace.n){
+    if (a1 && a2 && (a1->trace.n != a2->trace.n)){
       return false;
     }
     a2 = a2->next;

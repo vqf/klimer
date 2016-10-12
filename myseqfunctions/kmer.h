@@ -537,16 +537,17 @@ void postProcess(memstruct** msp){
   kcLL* tmp = *tmpp;
   tIdList* lTraces = ms->status->traceSet;
   while (lTraces){
-    tIdList* t = _getTrace(&tmp->kc->idflags, lTraces->trace.n);
+    tIdList* t = NULL;
+    if (tmp) t = _getTrace(&tmp->kc->idflags, lTraces->trace.n);
     while (tmp && tmp->next){
       bool oneMore = false;
-      while (tmp->next && IS(t, CIRCULAR)){
+      while (tmp->next && t && IS(t, CIRCULAR)){
         if (!oneMore) oneMore = true;
         tmp = tmp->next;
         if (tmp) t = _getTrace(&tmp->kc->idflags, lTraces->trace.n);
       }
       if (tmp && tmp->next){
-        if (oneMore){
+        if (t && oneMore){
           kcpush((kcLL**) &t->trace.circular, &tmp->next->kc);
         }
         tmp = tmp->next;
@@ -557,6 +558,24 @@ void postProcess(memstruct** msp){
     }
     lTraces = lTraces->next;
   }
+}
+
+void cleanTraceStatus(kmerHolder** khp){
+  memstruct* ms = (*khp)->ms;
+  ms->status->cId = 0;
+  destroyTIdList(&ms->status->traceSet, destroyCircular);
+  free(ms->status->traceSet);
+  destroyTIdList(&ms->status->extendMe, destroyCircular);
+  free(ms->status->extendMe);
+  ms->status->traceSet = NULL;
+  ms->status->addExistingTrace = true;
+  ms->status->addExistingTraceStatus = 0;
+  ms->status->start   = true;
+  ms->status->isFirst = true;
+  ms->status->current = NOKMER;
+  resetKmer(khp);
+  resetKcLL(&ms->status->trace);
+  ms->status->trace = NULL;
 }
 
 void resetTrace(kmerHolder** kp){
@@ -686,20 +705,7 @@ void resetTrace(kmerHolder** kp){
   }
   if (hasLoops) postProcess(&ms);
   /* Clean for next trace */
-  ms->status->cId = 0;
-  destroyTIdList(&ms->status->traceSet, destroyCircular);
-  free(ms->status->traceSet);
-  destroyTIdList(&ms->status->extendMe, destroyCircular);
-  free(ms->status->extendMe);
-  ms->status->traceSet = NULL;
-  ms->status->addExistingTrace = true;
-  ms->status->addExistingTraceStatus = 0;
-  ms->status->start   = true;
-  ms->status->isFirst = true;
-  ms->status->current = NOKMER;
-  resetKmer(kp);
-  resetKcLL(&ms->status->trace);
-  ms->status->trace = NULL;
+  cleanTraceStatus(kp);
 }
 
 
@@ -780,6 +786,7 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
   if (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3){
     if (kc->idflags){
       if (fst){
+        destroyTIdList(&ms->status->traceSet, destroyCircular);
         ms->status->traceSet = fst;
         fst = NULL;
         ms->status->extendMeUp = true;
@@ -789,6 +796,7 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
       else if (ms->status->isFirst){
         ms->status->isFirst = false;
         ms->status->extendMeUp = false;
+        destroyTIdList(&ms->status->traceSet, destroyCircular);
         ms->status->traceSet = copyTIdList(kc->idflags, destroyCircular);
         ms->status->addExistingTraceStatus = 1;
         D_(2, "Inside, not extending: 0 to 1\n");
@@ -842,7 +850,7 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
 kmerConnector* getConnector(memstruct** msp, uint32_t from, uint32_t to){
   memstruct *ms = *msp;
   kmerConnector* result = ms->kmerArray[from];
-  D_(2, "Getting connector from %lu to %lu\n", from, to);
+  D_(2, "Getting connector from %lu to %lu\n", (LUI) from, (LUI) to);
   if (!result){ // This connector did not exist
     D_(2, "This is a new one\n");
     ms->kmerArray[from] = newKmerConnector(to);
