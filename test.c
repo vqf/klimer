@@ -1,6 +1,7 @@
 #include <assert.h>
 #include "myseqfunctions/kmer.h"
 #include "myseqfunctions/kmerIO.h"
+#include "myseqfunctions/kmerRead.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,5 +45,10 @@ int main(int argc,char** argv){
   printf("Read\n");
   summarize(khr->ms);
   //drawMs(km->ms, "/Users/vqf/Desktop/delme.txt");
+  uint32_t init = seq2pos(km->ms, "GAAAAAAAAAA");
+  kcLL* t = followTrace(&km, init, 1);
+  char* yo = getTraceSeq(&km, &t);
+  printf("%s\n", yo);
   destroyKh(&km);
+
 }

@@ -35,12 +35,12 @@ typedef enum { false, true } bool;
 // b -> flag to operate
 int _CTR = 1;
 uint32_t _UID = 0;
-#define SCALAR(a) _CTR = 1; \
+#define SCALAR(a, b) _CTR = 1; \
                   while (a->next){\
                     _CTR++; \
                     a = a->next;\
                   } \
-                  printf("Scalar %s: %d\n", #a, _CTR);
+                  b = _CTR;
 
 #define SETKC(a, b) (((a)->flags = (a)->flags | b))
 #define UNSETKC(a, b) ((a)->flags = (a)->flags ^ b)
@@ -65,6 +65,8 @@ typedef struct kC{
 
 typedef struct mll{
   kmerConnector* kc;
+  uint8_t flags;
+  uint32_t pos;
   struct mll* next;
   struct mll* last;
 } kcLL;
@@ -391,6 +393,8 @@ kcLL* newKcPointer(kmerConnector** newkcp){
   kcLL* result = (kcLL*) calloc(1, sizeof(kcLL));
   result->kc = newkc;
   result->next = NULL;
+  result->flags = 0x00;
+  result->pos   = 0x00000000;
   result->last = result;
   return result;
 }

@@ -25,8 +25,8 @@ typedef enum { false, true } bool;
 #define IS(a, b) ((a)->trace.flag & b)
 
 
-#define LISTTYPE uint8_t
-#define MAXLISTTYPE 0xFF
+#define LISTTYPE uint32_t
+#define MAXLISTTYPE 0xFFFFFFFF
 
 #include "kmer.h"
 
