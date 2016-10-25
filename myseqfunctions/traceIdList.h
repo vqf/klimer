@@ -52,6 +52,7 @@ typedef traceLL traceVessel; //TraceVessel only takes pointers and its tidl is
                              // not freed
 
 void printTraceLL(traceLL*);
+traceVessel* _getTraces(tIdList**, tIdList*);
 
 uint32_t tIdListLength(tIdList** tidp){
   tIdList* tidl = *tidp;
@@ -328,29 +329,35 @@ tIdList* traceLast(tIdList* t, void (*callback)(void**)){
   return result;
 }
 
-bool isTraceFirst(tIdList* t, void (*callback)(void**)){
-  bool result = false;
-  tIdList* tmp = t;
-  while (tmp){
-    if (IS(tmp, FIRST_IN_TRACE)){
-      result = true;
+bool isTraceFirst(tIdList** t, tIdList* which, void (*callback)(void**)){
+  bool result = true;
+  traceVessel* tmpor = _getTraces(t, which);
+  traceVessel* tmp = tmpor;
+  while (tmp && tmp->tidl){
+    if (!IS(tmp->tidl, FIRST_IN_TRACE)){
+      result = false;
+      destroyTraceVessel(&tmpor);
       return result;
     }
     tmp = tmp->next;
   }
+  destroyTraceVessel(&tmpor);
   return result;
 }
 
-bool isTraceLast(tIdList* t, void (*callback)(void**)){
+bool isTraceLast(tIdList** t, tIdList* which, void (*callback)(void**)){
   bool result = false;
-  tIdList* tmp = t;
-  while (tmp){
-    if (IS(tmp, LAST_IN_TRACE)){
-      result = true;
+  traceVessel* tmpor = _getTraces(t, which);
+  traceVessel* tmp = tmpor;
+  while (tmp && tmp->tidl){
+    if (!IS(tmp->tidl, LAST_IN_TRACE)){
+      result = false;
+      destroyTraceVessel(&tmpor);
       return result;
     }
     tmp = tmp->next;
   }
+  destroyTraceVessel(&tmpor);
   return result;
 }
 

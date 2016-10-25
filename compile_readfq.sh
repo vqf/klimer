@@ -1,2 +1,2 @@
 #!/bin/bash
-gcc -Wall -lz readfq.c -o readfq
+gcc -std=c99 -Wall -Doff64_t=__off64_t -lz readfq.c -o readfq

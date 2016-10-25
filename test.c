@@ -39,16 +39,18 @@ int main(int argc,char** argv){
   }
   resetTrace(&km);
   summarize(km->ms);
-  writeOut(&km, "/users/vqf/desktop/tmp.txt");
-  printf("Written\n");
-  kmerHolder* khr = readIn("/users/vqf/desktop/tmp.txt");
-  printf("Read\n");
-  summarize(khr->ms);
+  //writeOut(&km, "/users/vqf/desktop/tmp.txt");
+  //printf("Written\n");
+  //kmerHolder* khr = readIn("/users/vqf/desktop/tmp.txt");
+  //printf("Read\n");
+  //summarize(khr->ms);
   //drawMs(km->ms, "/Users/vqf/Desktop/delme.txt");
-  uint32_t init = seq2pos(km->ms, "GAAAAAAAAAA");
-  kcLL* t = followTrace(&km, init, 1);
+  uint32_t init = seq2pos(km->ms, "GTAAAAAAAAA");
+  kcLL* t = followTrace(&km, init, 0);
   char* yo = getTraceSeq(&km, &t);
   printf("%s\n", yo);
+  free(yo);
+  resetKcLL(&t);
   destroyKh(&km);
 
 }

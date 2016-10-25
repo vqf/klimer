@@ -182,6 +182,8 @@ kmerHolder* readIn(char* file){
     fclose(fin);
     rebuildFromCirc(&result);
     cleanTraceStatus(&result);
+    result->ms->status->current = 0;
+    result->ms->status->cId = 0;
     return result;
   }
   else{

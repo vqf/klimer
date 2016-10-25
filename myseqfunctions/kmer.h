@@ -6,7 +6,7 @@
 #endif /* DEBUG */
 
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
-#define D_(a, ...) if (DEBUG >= a) printf(__VA_ARGS__);
+#define D_(a, ...) //if (DEBUG >= a) printf(__VA_ARGS__);
 #define P_(a) printf("%s at %d: %p\n", #a, __LINE__, a);
 
 #include <stdint.h>
@@ -494,6 +494,11 @@ void checkForLoops(kcLL** tmpp, tIdList* which){
     while (pointer->tidl){
       if (IS(pointer->tidl, RESERVED) && !IS(pointer->tidl, IN_USE)){
         SET(pointer->tidl, IN_USE);
+        if (pointer->tidl->trace.circular && !IS(pointer->tidl, CIRCULAR)){ // Comes from oneMore
+          resetKcLL((kcLL**) &pointer->tidl->trace.circular);
+          pointer->tidl->trace.circular = NULL;
+          D_(2, "Used to be oneMore. Not anyMore\n");
+        }
       }
       else{
         SET(pointer->tidl, RESERVED);
@@ -524,8 +529,6 @@ void findTraceSet(memstruct** msp, bool firstInRead, bool lastInRead){
   while (tmp){
     if (ms->status->addExistingTrace){
       mergeTIdLists(&tmp->kc->idflags, ms->status->traceSet, destroyCircular);
-      if (!firstInRead) unsetAsFirst(&tmp->kc->idflags, ms->status->traceSet);
-      if (!lastInRead)  unsetAsLast(&tmp->kc->idflags, ms->status->traceSet);
     }
     else{
       insertInTIdList(&tmp->kc->idflags, ms->status->cId, destroyCircular);
@@ -551,7 +554,8 @@ void postProcess(memstruct** msp){
         if (tmp) t = _getTrace(&tmp->kc->idflags, lTraces->trace.n);
       }
       if (tmp && tmp->next){
-        if (t && oneMore){
+        if (t && oneMore && !t->trace.circular){
+          D_(2, "Setting oneMore between %.8x and %.8x\n", (unsigned int) tmp->kc->uid, (unsigned int) tmp->next->kc->uid);
           kcpush((kcLL**) &t->trace.circular, &tmp->next->kc);
         }
         tmp = tmp->next;
@@ -627,13 +631,13 @@ void resetTrace(kmerHolder** kp){
     tmpKcVessel* upXt = NULL;
     while(tmp){
       D_(2, "Adding kc with uid: %.8x\n", tmp->kc->uid);
-      if (extendingUp && isTraceFirst(tmp->kc->idflags, destroyCircular)){
+      if (extendingUp && isTraceFirst(&tmp->kc->idflags, ms->status->traceSet, destroyCircular)){
         extendingUp = false; // Now download the contents of upXt
         extendCircUp(&upXt);
         canCheckLoop = false;
         D_(2, "We are getting into known territory: %.8x\n", tmp->kc->uid);
       }
-      if (!extendingDn && isTraceLast(tmp->kc->idflags, destroyCircular)){
+      if (!extendingDn && isTraceLast(&tmp->kc->idflags, ms->status->traceSet, destroyCircular)){
         extendingDn = true;
         canCheckLoop = true;
         D_(2, "Extending down\n");
@@ -659,6 +663,7 @@ void resetTrace(kmerHolder** kp){
             else{
               kcpush((kcLL**) &ptr->tidl->trace.circular, &tmp->next->kc);
               D_(2, "Adding to circular\n");
+              printKcLL(ms, ptr->tidl->trace.circular);
             }
             ptr = ptr->next;
           }
@@ -670,8 +675,14 @@ void resetTrace(kmerHolder** kp){
         D_(2, "Cannot check for loop\n");
       }
       setAsUsed(&tmp->kc->idflags, ms->status->traceSet);
+      if (firstInRead){
+        firstInRead = false;
+      }
+      else{
+        unsetAsFirst(&tmp->kc->idflags, ms->status->traceSet);
+      }
+      if (tmp->next) unsetAsLast(&tmp->kc->idflags, ms->status->traceSet);
       tmp = tmp->next;
-      if (firstInRead) firstInRead = false;
     }
     destroytmpKcVessel(&upXt);
     if (markFirst){
@@ -982,18 +993,6 @@ void printMs(memstruct* ms){
  */
 
 
-/*void readIn(memstruct* ms, char* fname){
-  FILE* file = fopen(fname, "r");
-  fseek(file, 0, SEEK_END);
-  off_t fileLen = ftell(file);
-  fseek(file, 0, SEEK_SET);
-  if (fileLen < ms->nPos){
-    fprintf(stderr, "File not suitable for %d-mers\n", (int) ms->kmerSize);
-    exit(1);
-  }
-  fread(ms->kmerArray, ms->nPos, 1, file);
-  fclose(file);
-}*/
 
 void summarize (memstruct* ms){
   uint32_t i = 0;
