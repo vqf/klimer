@@ -1,4 +1,3 @@
-#define DEBUG 0
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,6 +60,7 @@ int main(int argc,char** argv){
     resetTrace(&km);*/
   }
   writeOut(&km, outfile);
+  summarize(km->ms);
   destroyKh(&km);
   destroyFastqReader(&fq1);
   //destroyFastqReader(&fq2);

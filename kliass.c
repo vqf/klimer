@@ -17,7 +17,14 @@ int main(int argc,char** argv){
   }
   kmerHolder* kh = readIn(argv[1]);
   kcLL* ft = nextTrace(&kh);
-  printf("%s\n", getTraceSeq(&kh, &ft));
-  ft = nextTrace(&kh);
-  printf("%s\n", getTraceSeq(&kh, &ft));
+  uint32_t i = 0;
+  while (ft){
+    i++;
+    printf(">trace%lu\n", (LUI) i);
+    char* seq = getTraceSeq(&kh, &ft);
+    printf("%s\n", seq);
+    if (ft) resetKcLL(&ft);
+    ft = nextTrace(&kh);
+    free(seq);
+  }
 }

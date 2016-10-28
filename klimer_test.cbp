@@ -31,6 +31,7 @@
 				<Option output="kliass" prefix_auto="1" extension_auto="1" />
 				<Option type="1" />
 				<Option compiler="gcc" />
+				<Option parameters='&quot;/users/vqf/desktop/tmp.txt&quot;' />
 			</Target>
 		</Build>
 		<Compiler>

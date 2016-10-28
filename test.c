@@ -45,12 +45,19 @@ int main(int argc,char** argv){
   //printf("Read\n");
   //summarize(khr->ms);
   //drawMs(km->ms, "/Users/vqf/Desktop/delme.txt");
-  uint32_t init = seq2pos(km->ms, "GTAAAAAAAAA");
-  kcLL* t = followTrace(&km, init, 0);
+  /*uint32_t init = seq2pos(km->ms, "GAAAAAAAAAA");
+  kcLL* t = followTrace(&km, init, 1);
   char* yo = getTraceSeq(&km, &t);
   printf("%s\n", yo);
-  free(yo);
   resetKcLL(&t);
+  free(yo);*/
+  kcLL* ft = nextTrace(&km);
+  if (ft){
+    char* seq = getTraceSeq(&km, &ft);
+    printf("%s\n", seq);
+    free(seq);
+    resetKcLL(&ft);
+  }
   destroyKh(&km);
 
 }

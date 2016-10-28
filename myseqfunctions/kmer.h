@@ -6,7 +6,8 @@
 #endif /* DEBUG */
 
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
-#define D_(a, ...) //if (DEBUG >= a) printf(__VA_ARGS__);
+#define D_(a, ...) if (DEBUG >= a) printf(__VA_ARGS__);
+#define E_(a, b) if (DEBUG >= a){ printf("At %d: ", __LINE__); b; }
 #define P_(a) printf("%s at %d: %p\n", #a, __LINE__, a);
 
 #include <stdint.h>
@@ -93,7 +94,6 @@ typedef struct st{
   uint32_t current; // Last kmer read
   bool start;       // No kc has still been filled
   bool isFirst;     // Is it the first in a trace?
-  bool addExistingTrace;    // Should trace ids be added? (If not, cId is inserted)
   uint8_t addExistingTraceStatus; // See _existingTrace
 } msStatus;
 
@@ -162,7 +162,6 @@ void destroytmpKcVessel(tmpKcVessel** kvp){
 msStatus* initStatus(){
   msStatus* result = (msStatus*) calloc(1, sizeof(msStatus));
   result->trace = NULL;
-  result->addExistingTrace = true;
   result->addExistingTraceStatus = 0;
   result->extendMe = NULL;
   result->extendMeUp = false;
@@ -504,6 +503,7 @@ void checkForLoops(kcLL** tmpp, tIdList* which){
         SET(pointer->tidl, RESERVED);
       }
       pointer->tidl->trace.nReads++;
+      D_(2, "UID: %.8x, trace: %lu\n", (unsigned int) tmp->kc->uid, (LUI) pointer->tidl->trace.n);
       pointer = pointer->next;
     }
     destroyTraceVessel(&t);
@@ -522,17 +522,26 @@ void checkForLoops(kcLL** tmpp, tIdList* which){
   }
 }
 
-void findTraceSet(memstruct** msp, bool firstInRead, bool lastInRead){
+void findTraceSet(memstruct** msp){
   memstruct* ms = *msp;
   kcLL** tmpp = &ms->status->trace;
   kcLL* tmp = *tmpp;
+  bool newTrace = (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3);
   while (tmp){
-    if (ms->status->addExistingTrace){
-      mergeTIdLists(&tmp->kc->idflags, ms->status->traceSet, destroyCircular);
-    }
-    else{
+    if (newTrace){
+      if (ms->status->traceSet){
+        //printf("Warning: traceSet not empty at newTrace\n");
+        //printTIdList(ms->status->traceSet);
+        destroyTIdList(&ms->status->traceSet, destroyCircular);
+      }
       insertInTIdList(&tmp->kc->idflags, ms->status->cId, destroyCircular);
       insertInTIdList(&ms->status->traceSet, ms->status->cId, destroyCircular);
+      D_(2, "Adding existing trace %lu\n", (LUI) ms->status->cId);
+    }
+    else{
+      mergeTIdLists(&tmp->kc->idflags, ms->status->traceSet, destroyCircular);
+      D_(2, "Inserting traceSet in idflags\n");
+      E_(2, printTIdList(ms->status->traceSet));
     }
     tmp = tmp->next;
   }
@@ -576,7 +585,6 @@ void cleanTraceStatus(kmerHolder** khp){
   destroyTIdList(&ms->status->extendMe, destroyCircular);
   free(ms->status->extendMe);
   ms->status->traceSet = NULL;
-  ms->status->addExistingTrace = true;
   ms->status->addExistingTraceStatus = 0;
   ms->status->start   = true;
   ms->status->isFirst = true;
@@ -590,9 +598,7 @@ void resetTrace(kmerHolder** kp){
   memstruct* ms = (*kp)->ms;
   kcLL** tmpp = &ms->status->trace;
   kcLL* tmp = *tmpp;
-  bool markFirst   = false;
-  bool firstInRead = false;
-  bool lastInRead  = false;
+  bool firstInRead = true;
   bool extendingUp = false;
   bool extendingDn = false;
   bool hasLoops    = false;
@@ -600,47 +606,40 @@ void resetTrace(kmerHolder** kp){
   bool newTrace = (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3);
   D_(1, "Resetting trace with status %d\n", ms->status->addExistingTraceStatus);
   if (newTrace){
-    ms->status->addExistingTrace = false;
     canCheckLoop = true;
-    D_(2, "This is a new trace\n");
+    D_(1, "This is a new trace\n");
   }
   // Are we extending from upstream?
   if (ms->status->extendMeUp && !newTrace){
     extendingUp = true; // Until we get to first_in_trace
     canCheckLoop = true;
-    D_(2, "Extending up\n");
+    D_(1, "Extending up\n");
   }
   if (tmpp && tmp){
-    if (newTrace || ms->status->extendMeUp){
-      markFirst = true;
-      firstInRead = true;
-      D_(2, "Marking as first: %.8x\n", tmp->kc->uid);
-    }
+    //Find out and add traceSet
+    findTraceSet(&ms);
+    E_(1, printTIdList(ms->status->traceSet));
+    //Pre-check for loops
+    checkForLoops(&ms->status->trace, ms->status->traceSet);
     if (!tmp->next){
-      lastInRead = true;
       D_(2, "Got to the end of the read\n");
     }
-    //Find out traceSet
-    findTraceSet(&ms, firstInRead, lastInRead);
-    //Pre-check for loops
-    checkForLoops(&tmp, ms->status->traceSet);
     //printRead(ms);
-    // If extending up this is the first in a trace
     kcLL* kcCirc = NULL; // Which kcs in this trace loop
     traceLL* tCirc = newTraceLL(); // Which traces loop
     tmpKcVessel* upXt = NULL;
     while(tmp){
-      D_(2, "Adding kc with uid: %.8x\n", tmp->kc->uid);
+      D_(1, "Adding kc with uid: %.8x\n", tmp->kc->uid);
       if (extendingUp && isTraceFirst(&tmp->kc->idflags, ms->status->traceSet, destroyCircular)){
         extendingUp = false; // Now download the contents of upXt
         extendCircUp(&upXt);
         canCheckLoop = false;
-        D_(2, "We are getting into known territory: %.8x\n", tmp->kc->uid);
+        D_(1, "We are getting into known territory: %.8x\n", tmp->kc->uid);
       }
-      if (!extendingDn && isTraceLast(&tmp->kc->idflags, ms->status->traceSet, destroyCircular)){
+      if (ms->status->extendMeDn && !extendingDn && isTraceLast(&tmp->kc->idflags, ms->status->traceSet, destroyCircular)){
         extendingDn = true;
         canCheckLoop = true;
-        D_(2, "Extending down\n");
+        D_(1, "Extending down\n");
       }
       // Check for trace loops
       if (canCheckLoop){
@@ -663,7 +662,7 @@ void resetTrace(kmerHolder** kp){
             else{
               kcpush((kcLL**) &ptr->tidl->trace.circular, &tmp->next->kc);
               D_(2, "Adding to circular\n");
-              printKcLL(ms, ptr->tidl->trace.circular);
+              E_(2, printKcLL(ms, ptr->tidl->trace.circular));
             }
             ptr = ptr->next;
           }
@@ -685,20 +684,13 @@ void resetTrace(kmerHolder** kp){
       tmp = tmp->next;
     }
     destroytmpKcVessel(&upXt);
-    if (markFirst){
-      tIdList* which = ms->status->traceSet;
-      if (newTrace){
-        which = ms->status->trace->kc->idflags;
-      }
-      setAsFirst(&ms->status->trace->kc->idflags, which);
+    if (newTrace || ms->status->extendMeUp){
+      setAsFirst(&ms->status->trace->kc->idflags, ms->status->traceSet);
+      D_(1, "Marking as first: %.8x\n", ms->status->trace->kc->uid);
     }
-    //This is the last one in a read. Is it the last one in a trace?
-    if (isLastInTrace(ms, ms->status->trace->last->kc)){
-      tIdList* which = ms->status->traceSet;
-      if (newTrace){
-        which = ms->status->trace->last->kc->idflags;
-      }
-      setAsLast(&ms->status->trace->last->kc->idflags, which);
+    if (newTrace || ms->status->extendMeDn){
+      setAsLast(&ms->status->trace->last->kc->idflags, ms->status->traceSet);
+      D_(1, "Marking as last: %.8x\n", ms->status->trace->last->kc->uid);
     }
     /* Set circ bits*/
     kcLL* kctmp    = kcCirc;
@@ -790,7 +782,6 @@ void delConnector(kmerConnector** kcp){
 void _existingTrace(memstruct** msp, kmerConnector** kcp){
   memstruct* ms = *msp;
   kmerConnector* kc = *kcp;
-  tIdList* fst = traceFirst(kc->idflags, destroyCircular);
   //D_(2, "yo\t"); printTIdList(fst);
   if (kc->idflags){
     LISTTYPE m = maxInList(kc->idflags);
@@ -800,8 +791,9 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
   }
   if (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3){
     if (kc->idflags){
+      destroyTIdList(&ms->status->traceSet, destroyCircular);
+      tIdList* fst = traceFirst(kc->idflags, destroyCircular);
       if (fst){
-        destroyTIdList(&ms->status->traceSet, destroyCircular);
         ms->status->traceSet = fst;
         fst = NULL;
         ms->status->extendMeUp = true;
@@ -811,7 +803,6 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
       else if (ms->status->isFirst){
         ms->status->isFirst = false;
         ms->status->extendMeUp = false;
-        destroyTIdList(&ms->status->traceSet, destroyCircular);
         ms->status->traceSet = copyTIdList(kc->idflags, destroyCircular);
         ms->status->addExistingTraceStatus = 1;
         D_(2, "Inside, not extending: 0 to 1\n");
@@ -819,45 +810,51 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
       else{
         ms->status->addExistingTraceStatus = 3;
         ms->status->extendMeUp = false;
+        ms->status->extendMeDn = false;
         D_(2, "Found existing trace, not first: to 3\n");
       }
+      destroyTIdList(&fst, destroyCircular);
     }
   }
-  else if (ms->status->addExistingTrace){
-    if (ms->status->addExistingTraceStatus == 1){
-      intersectTIdLists(&ms->status->traceSet, kc->idflags, destroyCircular);
-      if (!ms->status->traceSet){
-        if (ms->status->extendMe){
-          ms->status->addExistingTraceStatus = 2;
-          destroyTIdList(&ms->status->traceSet, destroyCircular);
-          ms->status->traceSet = copyTIdList(ms->status->extendMe, destroyCircular);
-          ms->status->extendMeDn = true;
-          D_(2, "Extending existing traces: 1 to 2\n");
-        }
-        else{
-          ms->status->addExistingTraceStatus = 3;
-          ms->status->extendMeDn = false;
-          D_(2, "No traces to extend: 1 to 3\n");
-        }
+  else if (ms->status->addExistingTraceStatus == 1){
+    intersectTIdLists(&ms->status->traceSet, kc->idflags, destroyCircular);
+    if (!ms->status->traceSet){
+      if (ms->status->extendMe){
+        ms->status->addExistingTraceStatus = 2;
+        destroyTIdList(&ms->status->traceSet, destroyCircular);
+        ms->status->traceSet = copyTIdList(ms->status->extendMe, destroyCircular);
+        ms->status->extendMeDn = true;
+        D_(2, "Extending existing traces: 1 to 2\n");
       }
-    }
-    else if (ms->status->addExistingTraceStatus == 2){
-      if (kc->idflags){
-        if (isIncluded(&ms->status->traceSet, &kc->idflags)){
-          destroyTIdList(&ms->status->traceSet, destroyCircular);
-          ms->status->traceSet = copyTIdList(kc->idflags, destroyCircular);
-          D_(2, "No conflict, ids compatible\n");
-        }
-        else{
-          ms->status->addExistingTraceStatus = 3;
-          ms->status->extendMeUp = false;
-          ms->status->extendMeDn = false;
-          D_(2, "Conflict: 2 to 3\n");
-        }
+      else{
+        ms->status->addExistingTraceStatus = 3;
+        ms->status->extendMeUp = false;
+        ms->status->extendMeDn = false;
+        destroyTIdList(&ms->status->traceSet, destroyCircular);
+        D_(2, "No traces to extend: 1 to 3\n");
       }
     }
   }
-  destroyTIdList(&fst, destroyCircular);
+  else if (ms->status->addExistingTraceStatus == 2){
+    if (kc->idflags){
+      /*if (isIncluded(&ms->status->traceSet, &kc->idflags)){
+        destroyTIdList(&ms->status->traceSet, destroyCircular);
+        ms->status->traceSet = copyTIdList(kc->idflags, destroyCircular);
+        D_(2, "No conflict, ids compatible\n");
+      }
+      else{
+        ms->status->addExistingTraceStatus = 3;
+        ms->status->extendMeUp = false;
+        ms->status->extendMeDn = false;
+        D_(2, "Conflict: 2 to 3\n");
+      }*/
+      ms->status->addExistingTraceStatus = 3;
+      ms->status->extendMeUp = false;
+      ms->status->extendMeDn = false;
+      destroyTIdList(&ms->status->traceSet, destroyCircular);
+      D_(2, "Conflict: 2 to 3\n");
+    }
+  }
   D_(2, "TraceStatus: %d\n", ms->status->addExistingTraceStatus);
 }
 

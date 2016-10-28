@@ -54,7 +54,11 @@ kmerConnector* getKcWithTId(kmerHolder** khp, uint32_t pos, LISTTYPE tid){
     kc = kc->next;
   }
   if (!kc){
-    D_(0, "Could not find trace\n");
+    char* seq = (char*) calloc(12, sizeof(char));
+    pos2seq(&ms, pos, seq);
+    D_(0, "Error: Could not find trace %lu at %lu (%s)\n", (LUI) tid, (LUI) pos, seq);
+    free(seq);
+    exit(0);
   }
   return NULL;
 }
@@ -94,9 +98,6 @@ kcLL* followTrace(kmerHolder** khp, uint32_t pos, LISTTYPE tid){
       kc = getKcWithTId(khp, kc->dest, tid);
     }
     thisTrace = _getTrace(&kc->idflags, tid);
-    char seq[12]; pos2seq(&ms, kc->dest, seq);
-    //D_(0, "kc %lu (%s), trace %u\n", (LUI) kc->dest, seq, thisTrace->trace.n);
-    //getc(stdin);
   }
   result->pos = pos;
   return result;
@@ -106,7 +107,7 @@ kcLL* nextTrace(kmerHolder** khp){
   kmerHolder* kh = *khp;
   memstruct* ms = kh->ms;
   kcLL* result = NULL;
-  uint32_t i = ms->status->current;
+  uint32_t i = 0;//ms->status->current;
   while (i < ms->nPos){
     kmerConnector* kc = ms->kmerArray[i];
     while (kc && kc->n > 0){
@@ -114,6 +115,7 @@ kcLL* nextTrace(kmerHolder** khp){
       while (l){
         if (!IS(l, IN_USE) && IS(l, FIRST_IN_TRACE)){
           SET(l, IN_USE);
+          D_(2, "Found starting trace at %lu\n", (LUI) i);
           ms->status->current = i;
           result = followTrace(khp, i, l->trace.n);
           return result;
@@ -133,8 +135,8 @@ char* getTraceSeq(kmerHolder** khp, kcLL** kcp){
   kcLL* tmp = kcll;
   uint32_t l = 0;
   SCALAR(tmp, l);
-  uint32_t cl = (uint32_t) kh->kmerSize + l;
-  char* result = (char*) calloc(cl, sizeof(char));
+  uint32_t cl = (uint32_t) (kh->kmerSize + l + 1);
+  char* result = (char*) calloc((size_t) cl, sizeof(char));
   pos2seq(&kh->ms, kcll->pos, result);
   uint32_t j = (uint32_t) (kh->kmerSize);
   while (kcll){
@@ -144,7 +146,6 @@ char* getTraceSeq(kmerHolder** khp, kcLL** kcp){
   }
   return result;
 }
-
 
 
 #endif // KMERREAD_H_INCLUDED

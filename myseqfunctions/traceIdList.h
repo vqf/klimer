@@ -1,6 +1,9 @@
 #ifndef SNUMBERLIST_H_INCLUDED
 #define SNUMBERLIST_H_INCLUDED
 
+#ifndef LUI
+#define LUI long unsigned int
+#endif /* BOOL */
 
 #ifndef BOOL
 #define BOOL
@@ -26,6 +29,7 @@ typedef enum { false, true } bool;
 
 
 #define LISTTYPE uint32_t
+#define LISTTYPESYMBOL %lu
 #define MAXLISTTYPE 0xFFFFFFFF
 
 #include "kmer.h"
@@ -330,6 +334,7 @@ tIdList* traceLast(tIdList* t, void (*callback)(void**)){
 }
 
 bool isTraceFirst(tIdList** t, tIdList* which, void (*callback)(void**)){
+  if (!t || !which) return false;
   bool result = true;
   traceVessel* tmpor = _getTraces(t, which);
   traceVessel* tmp = tmpor;
@@ -346,7 +351,8 @@ bool isTraceFirst(tIdList** t, tIdList* which, void (*callback)(void**)){
 }
 
 bool isTraceLast(tIdList** t, tIdList* which, void (*callback)(void**)){
-  bool result = false;
+  if (!t || !which) return false;
+  bool result = true;
   traceVessel* tmpor = _getTraces(t, which);
   traceVessel* tmp = tmpor;
   while (tmp && tmp->tidl){
@@ -400,16 +406,14 @@ traceVessel* _getTraces(tIdList** tp, tIdList* which){
   traceVessel* pointer = result;
   LISTTYPE i = which->trace.n;
   while (tmp){
+    while (tmp->trace.n > i && which){
+      which = which->next;
+      if (which) i = which->trace.n;
+    }
     if (tmp->trace.n == i){
       pointer->tidl = tmp;
       pointer->next = (traceVessel*) newTraceLL();
       pointer = pointer->next;
-    }
-    else {
-      while (tmp->trace.n > i && which){
-        which = which->next;
-        if (which) i = which->trace.n;
-      }
     }
     tmp = tmp->next;
   }
@@ -480,17 +484,6 @@ void printTraceLL(traceLL* toprint){
   printf("==\n");
 }
 
-bool isCircTrace(tIdList** t, bool extending){
-  tIdList* tmp = *t;
-  while(tmp){
-    if ((!IS(tmp, CIRCULAR) || extending) && IS(tmp, IN_USE)){
-      return true;
-    }
-    tmp = tmp->next;
-  }
-  return false;
-}
-
 tIdList* circTraces(tIdList** t, bool extending, void (*callback)(void**)){
   tIdList* result = NULL;
   tIdList* tmp = *t;
@@ -507,56 +500,40 @@ tIdList* circTraces(tIdList** t, bool extending, void (*callback)(void**)){
 
 void unsetCircular(tIdList** t, tIdList* which){
   if (!which) return;
-  tIdList* tmp = *t;
-  LISTTYPE i = which->trace.n;
-  while (tmp){
-    if (tmp->trace.n == i){
-      if (IS(tmp, CIRCULAR)) UNSET(tmp, CIRCULAR);
-    }
-    else {
-      while (tmp->trace.n > i && which){
-        which = which->next;
-        if (which) i = which->trace.n;
-      }
-    }
-    tmp = tmp->next;
+  traceVessel* tmp = _getTraces(t, which);
+  traceVessel* ptr = tmp;
+  while (ptr->tidl){
+    if (IS(ptr->tidl, CIRCULAR)) UNSET(ptr->tidl, CIRCULAR);
+    ptr = ptr->next;
   }
+  destroyTraceVessel(&tmp);
 }
 
 void unsetAsFirst(tIdList** t, tIdList* which){
   if (!which) return;
-  tIdList* tmp = *t;
-  LISTTYPE i = which->trace.n;
-  while (tmp){
-    if (tmp->trace.n == i){
-      if (IS(tmp, FIRST_IN_TRACE)) UNSET(tmp, FIRST_IN_TRACE);
+  traceVessel* tmp = _getTraces(t, which);
+  traceVessel* ptr = tmp;
+  while (ptr->tidl){
+    if (IS(ptr->tidl, FIRST_IN_TRACE)){
+      UNSET(ptr->tidl, FIRST_IN_TRACE);
+      D_(1, "Unsetting first in %lu\n", (LUI) ptr->tidl->trace.n);
     }
-    else {
-      while (tmp->trace.n > i && which){
-        which = which->next;
-        if (which) i = which->trace.n;
-      }
-    }
-    tmp = tmp->next;
+    ptr = ptr->next;
   }
+  destroyTraceVessel(&tmp);
 }
 void unsetAsLast(tIdList** t, tIdList* which){
   if (!which) return;
-  tIdList* tmp = *t;
-  LISTTYPE i = which->trace.n;
-  while (tmp){
-    if (tmp->trace.n == i){
-      if (IS(tmp, LAST_IN_TRACE)) UNSET(tmp, LAST_IN_TRACE);
+  traceVessel* tmp = _getTraces(t, which);
+  traceVessel* ptr = tmp;
+  while (ptr->tidl){
+    if (IS(ptr->tidl, LAST_IN_TRACE)){
+      UNSET(ptr->tidl, LAST_IN_TRACE);
+      D_(1, "Unsetting last in %lu\n", (LUI) ptr->tidl->trace.n);
     }
-    else {
-      while (tmp->trace.n > i && which){
-        which = which->next;
-        if (which) i = which->trace.n;
-      }
-    }
-    tmp = tmp->next;
+    ptr = ptr->next;
   }
-
+  destroyTraceVessel(&tmp);
 }
 
 #endif // SNUMBERLIST_H_INCLUDED
