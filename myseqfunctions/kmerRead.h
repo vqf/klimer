@@ -48,7 +48,8 @@ kmerConnector* getKcWithTId(kmerHolder** khp, uint32_t pos, LISTTYPE tid){
   memstruct* ms = kh->ms;
   kmerConnector* kc = ms->kmerArray[pos];
   while (kc){
-    if (_getTrace(&kc->idflags, tid)){
+    tIdList* tt = _getTrace(&kc->idflags, tid);
+    if (tt && !IS(tt, FIRST_IN_TRACE)){
       return kc;
     }
     kc = kc->next;
@@ -77,8 +78,18 @@ kcLL* followTrace(kmerHolder** khp, uint32_t pos, LISTTYPE tid){
   kmerConnector* kc = getKcWithTId(khp, pos, tid);
   tIdList* thisTrace = _getTrace(&kc->idflags, tid);
   while (kc && !IS(thisTrace, LAST_IN_TRACE)){
+
+    E_(2, char* seq1 = calloc(12, sizeof(char));
+    char* seq2 = calloc(12, sizeof(char));
+    pos2seq(&ms, pos, seq1);
+    pos2seq(&ms, kc->dest, seq2);
+    D_(1, "Adding from %s to %s\n", seq1, seq2);
+    free(seq1); free(seq2);
+    getc(stdin));
+
     kcpush(&result, &kc);
     tIdList* tidl = _getTrace(&kc->idflags, tid);
+    E_(2, printTIdList(tidl));
     bool goOn = true;
     if (goOn && tidl->trace.circular){
       kcLL* c = (kcLL*) tidl->trace.circular;

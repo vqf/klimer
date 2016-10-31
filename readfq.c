@@ -53,7 +53,7 @@ int main(int argc,char** argv){
       s1 = getNextFqBase(&fq1);
     }
     resetTrace(&km);
-    /*while (s2){
+    /*while (s2){x
       updateKmer(&km, &s2, addRelationship);
       s2 = getNextFqBase(&fq2);
     }

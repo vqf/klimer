@@ -20,7 +20,7 @@ int main(int argc,char** argv){
   }
   resetTrace(&km);
 
-  dtext = "AAAAAAAAAAAACGTACGTACGAGCTTAGG";
+  dtext = "AAAAAAAAAAAACGTCCGTACGTACGTTCGTACGATTCCGTACGTACA";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
@@ -39,7 +39,7 @@ int main(int argc,char** argv){
   }
   resetTrace(&km);
   summarize(km->ms);
-  //writeOut(&km, "/users/vqf/desktop/tmp.txt");
+  writeOut(&km, "/users/vqf/desktop/tmp.txt");
   //printf("Written\n");
   //kmerHolder* khr = readIn("/users/vqf/desktop/tmp.txt");
   //printf("Read\n");
@@ -51,13 +51,13 @@ int main(int argc,char** argv){
   printf("%s\n", yo);
   resetKcLL(&t);
   free(yo);*/
-  kcLL* ft = nextTrace(&km);
+  /*kcLL* ft = nextTrace(&km);
   if (ft){
     char* seq = getTraceSeq(&km, &ft);
     printf("%s\n", seq);
     free(seq);
     resetKcLL(&ft);
-  }
+  }*/
   destroyKh(&km);
 
 }

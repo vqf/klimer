@@ -2,7 +2,7 @@
 #define KMER_H_INCLUDED
 
 #ifndef DEBUG
-#define DEBUG 0
+#define DEBUG 1
 #endif /* DEBUG */
 
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
@@ -530,7 +530,7 @@ void findTraceSet(memstruct** msp){
   while (tmp){
     if (newTrace){
       if (ms->status->traceSet){
-        //printf("Warning: traceSet not empty at newTrace\n");
+        D_(0, "Warning: traceSet not empty at newTrace\n");
         //printTIdList(ms->status->traceSet);
         destroyTIdList(&ms->status->traceSet, destroyCircular);
       }
@@ -539,6 +539,7 @@ void findTraceSet(memstruct** msp){
       D_(2, "Adding existing trace %lu\n", (LUI) ms->status->cId);
     }
     else{
+
       mergeTIdLists(&tmp->kc->idflags, ms->status->traceSet, destroyCircular);
       D_(2, "Inserting traceSet in idflags\n");
       E_(2, printTIdList(ms->status->traceSet));
@@ -557,6 +558,10 @@ void postProcess(memstruct** msp){
     if (tmp) t = _getTrace(&tmp->kc->idflags, lTraces->trace.n);
     while (tmp && tmp->next){
       bool oneMore = false;
+      if (ISKC(tmp->kc, RESERVED)){
+        oneMore = true;
+        if (tmp) t = _getTrace(&tmp->kc->idflags, lTraces->trace.n);
+      }
       while (tmp->next && t && IS(t, CIRCULAR)){
         if (!oneMore) oneMore = true;
         tmp = tmp->next;
@@ -710,7 +715,7 @@ void resetTrace(kmerHolder** kp){
     destroyTraceLL(&tCirc, destroyCircular);
     resetKcLL(&kcCirc);
   }
-  if (hasLoops) postProcess(&ms);
+  postProcess(&ms);
   /* Clean for next trace */
   cleanTraceStatus(kp);
 }
@@ -888,6 +893,9 @@ kmerConnector* getConnector(memstruct** msp, uint32_t from, uint32_t to){
   //ms->status->cId = maxInList(ms->status->traceSet);
   destroyTIdList(&ms->status->extendMe, destroyCircular);
   ms->status->extendMe = traceLast(result->idflags, destroyCircular);
+  if (from == to){
+    SETKC(result, RESERVED);
+  }
   kcpush(&ms->status->trace, &result);
   return result;
 }
@@ -912,7 +920,7 @@ void addRelationship(kmerHolder** kp, uint32_t to){
 }
 
 void printKmerConnector(kmerConnector* kc, char* seq){
-  printf("Uid: %.8x\n", kc->uid);
+  printf("Uid: %.8x\nFlags: %u\n", kc->uid, kc->flags);
   printf("Dest: %s\nN: %d\nIds: ", seq, kc->n);
 }
 
