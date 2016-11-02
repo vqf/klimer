@@ -123,12 +123,14 @@ kcLL* nextTrace(kmerHolder** khp){
     kmerConnector* kc = ms->kmerArray[i];
     while (kc && kc->n > 0){
       tIdList* l = kc->idflags;
+      uint32_t next = kc->dest;
       while (l){
         if (!IS(l, IN_USE) && IS(l, FIRST_IN_TRACE)){
           SET(l, IN_USE);
           D_(2, "Found starting trace at %lu\n", (LUI) i);
           ms->status->current = i;
-          result = followTrace(khp, i, l->trace.n);
+          kcpush(&result, kc);
+          result = followTrace(khp, next, l->trace.n);
           return result;
         }
         l = l->next;

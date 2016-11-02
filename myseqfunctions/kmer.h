@@ -2,13 +2,14 @@
 #define KMER_H_INCLUDED
 
 #ifndef DEBUG
-#define DEBUG 1
+#define DEBUG 0
 #endif /* DEBUG */
 
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
 #define D_(a, ...) if (DEBUG >= a) printf(__VA_ARGS__);
 #define E_(a, b) if (DEBUG >= a){ printf("At %d: ", __LINE__); b; }
 #define P_(a) printf("%s at %d: %p\n", #a, __LINE__, a);
+#define SEQ(a, b) char* _seq = (char*) calloc(12, sizeof(char)); pos2seq(a, b->dest, _seq); printf("%s\n", _seq); free(_seq);
 
 #include <stdint.h>
 #include <stdio.h>
@@ -561,6 +562,7 @@ void postProcess(memstruct** msp){
       if (ISKC(tmp->kc, RESERVED)){
         oneMore = true;
         if (tmp) t = _getTrace(&tmp->kc->idflags, lTraces->trace.n);
+        UNSETKC(tmp->kc, RESERVED);
       }
       while (tmp->next && t && IS(t, CIRCULAR)){
         if (!oneMore) oneMore = true;
@@ -633,6 +635,7 @@ void resetTrace(kmerHolder** kp){
     kcLL* kcCirc = NULL; // Which kcs in this trace loop
     traceLL* tCirc = newTraceLL(); // Which traces loop
     tmpKcVessel* upXt = NULL;
+    kcLL* penultimate = NULL;
     while(tmp){
       D_(1, "Adding kc with uid: %.8x\n", tmp->kc->uid);
       if (extendingUp && isTraceFirst(&tmp->kc->idflags, ms->status->traceSet, destroyCircular)){
@@ -685,16 +688,21 @@ void resetTrace(kmerHolder** kp){
       else{
         unsetAsFirst(&tmp->kc->idflags, ms->status->traceSet);
       }
-      if (tmp->next) unsetAsLast(&tmp->kc->idflags, ms->status->traceSet);
+      if (tmp->next){
+        unsetAsLast(&tmp->kc->idflags, ms->status->traceSet);
+        penultimate = tmp;
+      }
       tmp = tmp->next;
     }
     destroytmpKcVessel(&upXt);
     if (newTrace || ms->status->extendMeUp){
       setAsFirst(&ms->status->trace->kc->idflags, ms->status->traceSet);
+      SETKC(ms->status->trace->kc, RESERVED);
       D_(1, "Marking as first: %.8x\n", ms->status->trace->kc->uid);
     }
     if (newTrace || ms->status->extendMeDn){
       setAsLast(&ms->status->trace->last->kc->idflags, ms->status->traceSet);
+      SETKC(penultimate->kc, RESERVED);
       D_(1, "Marking as last: %.8x\n", ms->status->trace->last->kc->uid);
     }
     /* Set circ bits*/
