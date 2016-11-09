@@ -43,27 +43,6 @@ void destroyKcLL2D(kcLL2D** todelp){
 }
 
 
-kmerConnector* getKcWithTId(kmerHolder** khp, uint32_t pos, LISTTYPE tid){
-  kmerHolder* kh = *khp;
-  memstruct* ms = kh->ms;
-  kmerConnector* kc = ms->kmerArray[pos];
-  while (kc){
-    tIdList* tt = _getTrace(&kc->idflags, tid);
-    if (tt && !IS(tt, FIRST_IN_TRACE)){
-      return kc;
-    }
-    kc = kc->next;
-  }
-  if (!kc){
-    char* seq = (char*) calloc(12, sizeof(char));
-    pos2seq(&ms, pos, seq);
-    D_(0, "Error: Could not find trace %lu at %lu (%s)\n", (LUI) tid, (LUI) pos, seq);
-    free(seq);
-    exit(0);
-  }
-  return NULL;
-}
-
 char getLastBase(kmerHolder** khp, uint32_t pos){
   kmerHolder* kh = *khp;
   uint8_t nb = kh->nBases;
@@ -75,40 +54,21 @@ char getLastBase(kmerHolder** khp, uint32_t pos){
 kcLL* followTrace(kmerHolder** khp, uint32_t pos, LISTTYPE tid){
   kcLL* result = NULL;
   memstruct* ms = (*khp)->ms;
-  kmerConnector* kc = getKcWithTId(khp, pos, tid);
+  kmerConnector* kc = getKcWithTId(&ms, pos, tid);
   tIdList* thisTrace = _getTrace(&kc->idflags, tid);
   while (kc && !IS(thisTrace, LAST_IN_TRACE)){
 
-    E_(2, char* seq1 = calloc(12, sizeof(char));
-    char* seq2 = calloc(12, sizeof(char));
-    pos2seq(&ms, pos, seq1);
-    pos2seq(&ms, kc->dest, seq2);
-    D_(1, "Adding from %s to %s\n", seq1, seq2);
-    free(seq1); free(seq2);
-    getc(stdin));
+    E_(1,
+      char* seq2 = calloc(12, sizeof(char));
+      pos2seq(&ms, kc->dest, seq2);
+      printKmerConnector(kc, seq2);
+      printTIdList(kc->idflags);
+      free(seq2);
+      //getc(stdin)
+    );
 
     kcpush(&result, &kc);
-    tIdList* tidl = _getTrace(&kc->idflags, tid);
-    E_(2, printTIdList(tidl));
-    bool goOn = true;
-    if (goOn && tidl->trace.circular){
-      kcLL* c = (kcLL*) tidl->trace.circular;
-      while (c && ISKC(c, IN_USE)){
-        c = c->next;
-      }
-      if (c){
-        SETKC(c, IN_USE);
-        kc = c->kc;
-      }
-      else{
-        goOn = false;
-        kc = getKcWithTId(khp, kc->dest, tid);
-      }
-    }
-    else{
-      kc = getKcWithTId(khp, kc->dest, tid);
-    }
-    thisTrace = _getTrace(&kc->idflags, tid);
+    kc = nextKc(&ms, &kc, tid);
   }
   result->pos = pos;
   return result;
@@ -123,14 +83,12 @@ kcLL* nextTrace(kmerHolder** khp){
     kmerConnector* kc = ms->kmerArray[i];
     while (kc && kc->n > 0){
       tIdList* l = kc->idflags;
-      uint32_t next = kc->dest;
       while (l){
         if (!IS(l, IN_USE) && IS(l, FIRST_IN_TRACE)){
           SET(l, IN_USE);
           D_(2, "Found starting trace at %lu\n", (LUI) i);
           ms->status->current = i;
-          kcpush(&result, kc);
-          result = followTrace(khp, next, l->trace.n);
+          result = followTrace(khp, i, l->trace.n);
           return result;
         }
         l = l->next;

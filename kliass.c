@@ -16,6 +16,7 @@ int main(int argc,char** argv){
     return 1;
   }
   kmerHolder* kh = readIn(argv[1]);
+  //summarize(kh->ms); exit(0);
   kcLL* ft = nextTrace(&kh);
   uint32_t i = 0;
   while (ft){

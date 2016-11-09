@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1477915740 source:c:\users\vqf\documents\cpp\klimer_project\github\test.c
+1478177018 source:c:\users\vqf\documents\cpp\klimer_project\github\test.c
 	<assert.h>
 	"myseqfunctions/kmer.h"
 	"myseqfunctions/kmerIO.h"
@@ -10,7 +10,7 @@
 	<stdint.h>
 	<time.h>
 
-1478019317 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
+1478709804 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
 	<stdint.h>
 	<stdio.h>
 	<stdlib.h>
@@ -29,12 +29,12 @@
 
 1476124630 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\debugfileio.h
 
-1478019280 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerread.h
+1478711961 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerread.h
 	"kmer.h"
 	"traceIdList.h"
 	"stdio.h"
 
-1477496110 source:c:\users\vqf\documents\cpp\klimer_project\github\kliass.c
+1478262222 source:c:\users\vqf\documents\cpp\klimer_project\github\kliass.c
 	<stdio.h>
 	<stdlib.h>
 	<string.h>
