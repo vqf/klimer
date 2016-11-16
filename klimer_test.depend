@@ -10,7 +10,7 @@
 	<stdint.h>
 	<time.h>
 
-1478709804 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
+1478782958 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
 	<stdint.h>
 	<stdio.h>
 	<stdlib.h>
@@ -29,7 +29,7 @@
 
 1476124630 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\debugfileio.h
 
-1478711961 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerread.h
+1479234126 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerread.h
 	"kmer.h"
 	"traceIdList.h"
 	"stdio.h"

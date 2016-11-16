@@ -5,41 +5,59 @@
 #include "traceIdList.h"
 #include "stdio.h"
 
-typedef struct kcLL2D{
-  kcLL* kcll;
-  struct kcLL2D* next;
-} kcLL2D;
 
-kcLL2D* _newkcLL2D(kcLL** kclp){
-  kcLL* kcl = *kclp;
-  kcLL2D* result = (kcLL2D*) calloc(1, sizeof(kcLL2D));
-  result->kcll = kcl;
+typedef struct traceInfo{
+  LISTTYPE n;
+  kmerConnector* first;
+  bool extreme;
+  tIdList* downstreamCompat;
+  struct traceInfo* next;
+} traceInfo;
+
+typedef struct traces{
+  LISTTYPE currentUID;
+  traceInfo* traceList;
+} traces;
+
+typedef struct seqCollection{
+  char* traceName;
+  uint32_t nReads;
+  char* seq;
+  struct seqCollection* next;
+} seqCollection;
+
+seqCollection* newSeqCollection(){
+  seqCollection* result = calloc(1, sizeof(seqCollection));
+  result->traceName = NULL;
+  result->seq = NULL;
   result->next = NULL;
   return result;
 }
 
-void pushKcLL(kcLL2D** kclp, kcLL** toaddp){
-  kcLL2D* kcl = *kclp;
-  if (kcl){
-    while (kcl->next){
-      kcl = kcl->next;
-    }
-    kcl->next = _newkcLL2D(toaddp);
+void pushSeq(seqCollection** scp, char** tNamep, uint32_t nReads, char** seqp){
+  seqCollection* sc = *scp;
+  char* tName = *tNamep;
+  char* seq   = *seqp;
+  while (sc && sc->next){
+    sc = sc->next;
   }
-  else{
-    kcl = _newkcLL2D(toaddp);
-  }
-  *kclp = kcl;
+  seqCollection* nxt = newSeqCollection();
+  nxt->traceName = tName;
+  nxt->seq = seq;
+  nxt->nReads = nReads;
+  sc->next = nxt;
 }
 
-void destroyKcLL2D(kcLL2D** todelp){
-  kcLL2D* todel = *todelp;
-  while (todel){
-    kcLL2D* tmp = todel;
-    todel = todel->next;
-    free(tmp);
+void destroySeqCollection(seqCollection** scp){
+  seqCollection* sc = *scp;
+  while(sc){
+    seqCollection* nxt = sc->next;
+    free(sc->traceName);
+    free(sc->seq);
+    free(sc);
+    sc = nxt;
   }
-  todelp = NULL;
+  scp = NULL;
 }
 
 
@@ -69,6 +87,7 @@ kcLL* followTrace(kmerHolder** khp, uint32_t pos, LISTTYPE tid){
 
     kcpush(&result, &kc);
     kc = nextKc(&ms, &kc, tid);
+    if (kc) thisTrace = _getTrace(&kc->idflags, tid);
   }
   result->pos = pos;
   return result;
@@ -117,6 +136,74 @@ char* getTraceSeq(kmerHolder** khp, kcLL** kcp){
   }
   return result;
 }
+
+seqCollection* allSeqs(kmerHolder** khp){
+}
+
+traceInfo* newTraceInfo(LISTTYPE n, kmerConnector** first){
+  traceInfo* result = calloc(1, sizeof(traceInfo));
+  result->n = n;
+  result->first = *first;
+  result->extreme = true;
+  result->downstreamCompat = NULL;
+  result->next = NULL;
+  return result;
+}
+
+void destroyTraceInfo(traceInfo** tip){
+  traceInfo* ti = *tip;
+  traceInfo* p = ti;
+  while (p){
+    p = ti->next;
+    destroyTIdList(&ti->downstreamCompat, destroyCircular);
+    free(ti);
+    ti = p;
+  }
+  free(tip);
+}
+
+traces* startTraces(){
+  traces* result = calloc(1, sizeof(traces));
+  result->currentUID = 0;
+  result->traceList = NULL;
+  return result;
+}
+
+void pushTraceInfo(traces** tp, LISTTYPE n, kmerConnector** first){
+  traces* t = *tp;
+  traceInfo* ti = newTraceInfo(n, first);
+  traceInfo* tmp = t->traceList;
+  while(tmp->next){
+    tmp = tmp->next;
+  }
+  tmp->next = ti;
+}
+
+void destroyTraces(traces** tp){
+  traces* t = *tp;
+  destroyTraceInfo(&t->traceList);
+  free(t);
+  free(tp);
+}
+
+/*
+void consolidateTraces(kmerHolder** khp){
+  kmerHolder* kh = *khp;
+  memstruct* ms = kh->ms;
+  traces* tr = startTraces();
+  uint32_t i = 0;
+  for (i = 0; i < ms->nPos; i++){
+    kmerConnector* kc = ms->kmerArray[i];
+    tIdList* il = kc->idflags;
+    while (il){
+      if (IS(il, FIRST_IN_TRACE)){
+        kmerConnector* nxt = nextKc(&ms, &kc, il->trace.n);
+      }
+      il = il->next;
+    }
+  }
+}
+*/
 
 
 #endif // KMERREAD_H_INCLUDED

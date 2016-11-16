@@ -624,27 +624,6 @@ void findTraceSet(memstruct** msp){
       D_(2, "Adding existing trace %lu\n", (LUI) ms->status->cId);
     }
     else{
-      tIdList* ids = ms->status->traceSet;
-      bool oneMore = false;
-      while (ids){
-        tIdList* ex = _getTrace(&tmp->kc->idflags, ids->trace.n);
-        if (tmp->next && isNextInConflict(msp, tmp->kc->dest, ids->trace.n)){
-          //SET(ex, IN_USE);
-        }
-        if (ex && !IS(ex, LAST_IN_TRACE) && !ex->trace.circular){ // Existing kc is circular only after extension
-          oneMore = true;
-          kmerConnector* nxt = nextKc(msp, &tmp->kc, ids->trace.n);
-          D_(1, "Setting circ in %.8x to %.8x\n", (unsigned int) tmp->kc->uid, (unsigned int) nxt->uid);
-          kcpush((kcLL**) &ex->trace.circular, &nxt);
-          SET(ex, CIRCULAR);
-          SET(ex, IN_USE);
-        }
-        else if (oneMore){
-          oneMore = false;
-          kcpush((kcLL**) &ex->trace.circular, &tmp->kc->next);
-        }
-        ids = ids->next;
-      }
       mergeTIdLists(&tmp->kc->idflags, ms->status->traceSet, destroyCircular);
       D_(2, "Inserting traceSet in idflags\n");
       E_(2, printTIdList(ms->status->traceSet));
@@ -757,6 +736,7 @@ void resetTrace(kmerHolder** kp){
       // Check for trace loops
       if (canCheckLoop){
         bool overrideCirc = (extendingUp | extendingDn);
+        // Now this is superfluous
         tIdList* cTraces = circTraces(&tmp->kc->idflags, overrideCirc, destroyCircular);
         if (tmp->next && cTraces){
           D_(2, "This kc loops with override %u\n", overrideCirc);
@@ -827,7 +807,7 @@ void resetTrace(kmerHolder** kp){
     destroyTraceLL(&tCirc, destroyCircular);
     resetKcLL(&kcCirc);
   }
-  postProcess(&ms);
+  //postProcess(&ms);
   /* Clean for next trace */
   cleanTraceStatus(kp);
 }
