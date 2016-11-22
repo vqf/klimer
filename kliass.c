@@ -16,8 +16,10 @@ int main(int argc,char** argv){
     return 1;
   }
   kmerHolder* kh = readIn(argv[1]);
+  seqCollection* sc = allTraces(&kh);
+  printSeqCollection(&kh, &sc);
   //summarize(kh->ms); exit(0);
-  kcLL* ft = nextTrace(&kh);
+  /*kcLL* ft = nextTrace(&kh);
   uint32_t i = 0;
   while (ft){
     i++;
@@ -27,5 +29,5 @@ int main(int argc,char** argv){
     if (ft) resetKcLL(&ft);
     ft = nextTrace(&kh);
     free(seq);
-  }
+  }*/
 }

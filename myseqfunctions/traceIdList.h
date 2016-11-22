@@ -367,7 +367,8 @@ bool isTraceLast(tIdList** t, tIdList* which, void (*callback)(void**)){
   return result;
 }
 
-tIdList* traceFirst(tIdList* t, void (*callback)(void**)){
+tIdList* traceFirst(tIdList** tp, void (*callback)(void**)){
+  tIdList* t = *tp;
   tIdList* result = NULL;
   tIdList* tmp = t;
   while (tmp){

@@ -2,7 +2,7 @@
 #define KMER_H_INCLUDED
 
 #ifndef DEBUG
-#define DEBUG 0
+#define DEBUG 1
 #endif /* DEBUG */
 
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
@@ -428,6 +428,33 @@ void kcpush (kcLL** llp, kmerConnector** newkcp){
   *llp = ll;
 }
 
+kcLL* kcCopy(kcLL** kclp){
+  kcLL* kcl = *kclp;
+  kcLL* result = NULL;
+  if (kcl){
+    uint32_t pos = kcl->pos;
+    while (kcl){
+      kcpush(&result, &kcl->kc);
+      kcl = kcl->next;
+    }
+    result->pos = pos;
+  }
+  return result;
+}
+
+void kcConcat(kcLL** llp, kcLL** llp2){
+  kcLL* ll1 = *llp;
+  kcLL* ll2 = *llp2;
+  if (ll1){
+    ll1 = ll1->last;
+    ll1->next = ll2;
+  }
+  else{
+    ll1 = ll2;
+  }
+  llp2 = NULL;
+}
+
 void printKc (memstruct* ms){
   kcLL* ll = ms->status->trace;
   char seq[12];
@@ -528,15 +555,16 @@ kmerConnector* nextKc(memstruct** msp, kmerConnector** kcp, LISTTYPE i){
   if (tidl->trace.circular){
     kcLL* c = (kcLL*) tidl->trace.circular;
     while (c && ISKC(c, IN_USE)){
+      D_(1, "Not this one (%.8x)\n", (unsigned int) c->kc->uid);
       c = c->next;
-      D_(2, "Not this one\n");
     }
     if (c){
       SETKC(c, IN_USE);
-      D_(2, "From circ\n");
+      D_(1, "From circ\n");
       result = c->kc;
     }
     else{
+      D_(1, "From getKc\n");
       result = getKcWithTId(msp, kc->dest, i);
     }
   }
@@ -786,7 +814,7 @@ void resetTrace(kmerHolder** kp){
     }
     if (newTrace || ms->status->extendMeDn){
       setAsLast(&ms->status->trace->last->kc->idflags, ms->status->traceSet);
-      SETKC(penultimate->kc, RESERVED);
+      if (penultimate) SETKC(penultimate->kc, RESERVED);
       D_(1, "Marking as last: %.8x\n", ms->status->trace->last->kc->uid);
     }
     /* Set circ bits*/
@@ -889,7 +917,7 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
   if (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3){
     if (kc->idflags){
       destroyTIdList(&ms->status->traceSet, destroyCircular);
-      tIdList* fst = traceFirst(kc->idflags, destroyCircular);
+      tIdList* fst = traceFirst(&kc->idflags, destroyCircular);
       if (fst){
         ms->status->traceSet = fst;
         fst = NULL;
