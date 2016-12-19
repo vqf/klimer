@@ -5,10 +5,20 @@
 #define LUI long unsigned int
 #endif /* BOOL */
 
+#ifndef DEBUG
+#define DEBUG 0
+#endif /* DEBUG */
+
+
 #ifndef BOOL
 #define BOOL
 typedef enum { false, true } bool;
 #endif /* BOOL */
+
+#define D_(a, ...) if (DEBUG >= a) printf(__VA_ARGS__);
+#define E_(a, b) if (DEBUG >= a){ printf("At %d: ", __LINE__); b; }
+#define P_(a) printf("%s at %d: %p\n", #a, __LINE__, a);
+
 
 
 // Trace flags
@@ -32,23 +42,25 @@ typedef enum { false, true } bool;
 #define LISTTYPESYMBOL %lu
 #define MAXLISTTYPE 0xFFFFFFFF
 
-#include "kmer.h"
+//#include "kmer.h"
 
 typedef struct tId{
   LISTTYPE n;
-  uint8_t flag;
+  uint8_t  flag;
   uint32_t nReads; // Number of events supporting connection
-  void* circular; // Only used when a trace references a kmer more than once
 } tId;
 
 
 typedef struct iarr{
   tId trace;
+  struct iarr* posInTrace;
   struct iarr* next;
 } tIdList;
 
 typedef struct traceLL{
   tIdList* tidl;
+  LISTTYPE traceId;
+  LISTTYPE posInTrace;
   struct traceLL* next;
 } traceLL;
 
@@ -68,17 +80,21 @@ uint32_t tIdListLength(tIdList** tidp){
   return result;
 }
 
+
 void printTIdList(tIdList* a){
   if (!a){
-    printf("Null tIdList\n");
     return;
   }
-  printf("[%d, %.1x] (%u)", a->trace.n, a->trace.flag, (short unsigned) a->trace.nReads);
-  while(a->next){
+  while(a){
+    printf("[");
+    printf("%d (%u)", a->trace.n, (short unsigned) a->trace.nReads);
+    if (a->posInTrace) printf(", ");
+    printTIdList(a->posInTrace);
+    printf("]");
     a = a->next;
-    printf(", [%d, %.1x] (%u)", a->trace.n, a->trace.flag, (short unsigned) a->trace.nReads);
+    if (a) printf(", ");
   }
-  printf("\n");
+  //printf("\n");
 }
 
 
@@ -90,19 +106,17 @@ void printTIdList(tIdList* a){
 tIdList* newTIdList(LISTTYPE val){
   tIdList* result = (tIdList*) calloc(1, sizeof(tIdList));
   result->trace.n = val;
-  result->trace.flag = 0;
+  result->trace.nReads = 0;
   result->next = NULL;
-  result->trace.circular = NULL;
+  result->posInTrace = NULL;
   return result;
 }
 
-void destroyTIdList(tIdList** todel, void (*funcDestroyCirc)(void**)){
+void destroyTIdList(tIdList** todel){
   while (*todel){
     tIdList* tmp = *todel;
     *todel = (*todel)->next;
-    if (tmp->trace.circular){
-      funcDestroyCirc(&tmp->trace.circular);
-    }
+    if (tmp->posInTrace) destroyTIdList(&tmp->posInTrace);
     free(tmp);
   }
 }
@@ -111,7 +125,8 @@ void destroyTIdList(tIdList** todel, void (*funcDestroyCirc)(void**)){
 traceLL* newTraceLL(){
   traceLL* result = (traceLL*) calloc(1, sizeof(traceLL));
   result->tidl = NULL;
-  result->next = NULL;
+  result->posInTrace = 0;
+  result->traceId = 0;
   return result;
 }
 
@@ -130,7 +145,7 @@ LISTTYPE maxInList(tIdList* l){
   return result;
 }
 
-void insertInTIdList(tIdList** Iarr, LISTTYPE val, void (*callback)(void**)){
+void insertInTIdList(tIdList** Iarr, LISTTYPE val){
   if (!*Iarr){
     *Iarr = newTIdList(val);
     return;
@@ -149,7 +164,7 @@ void insertInTIdList(tIdList** Iarr, LISTTYPE val, void (*callback)(void**)){
       }
       if (p->next){ //Insert
         if (p->trace.n == val || p->next->trace.n == val){
-          destroyTIdList(&nxt, callback);
+          destroyTIdList(&nxt);
           return;
         }
         tIdList* cnt = p->next;
@@ -158,7 +173,7 @@ void insertInTIdList(tIdList** Iarr, LISTTYPE val, void (*callback)(void**)){
       }
       else{ //Push
         if (p->trace.n == val){
-          destroyTIdList(&nxt, callback);
+          destroyTIdList(&nxt);
           return;
         }
         p->next = nxt;
@@ -171,33 +186,38 @@ void insertInTIdList(tIdList** Iarr, LISTTYPE val, void (*callback)(void**)){
   }
 }
 
-tIdList* copyTIdList(tIdList* tocopy, void (*callback)(void**)){
+void addPosInTrace(tIdList** ap, LISTTYPE pos){
+  insertInTIdList((&(*ap)->posInTrace), pos);
+}
+
+
+tIdList* copyTIdList(tIdList* tocopy){
   tIdList* result = NULL;
   if (!tocopy){
     return result;
   }
   tIdList* tmp = tocopy;
   while(tmp){
-    insertInTIdList(&result, tmp->trace.n, callback);
+    insertInTIdList(&result, tmp->trace.n);
     tmp = tmp->next;
   }
   return result;
 }
 
-void mergeTIdLists(tIdList** l1p, tIdList* l2, void (*callback)(void**)){
+void mergeTIdLists(tIdList** l1p, tIdList* l2){
   if (l1p && *l1p){
     while (l2){
-      insertInTIdList(l1p, l2->trace.n, callback);
+      insertInTIdList(l1p, l2->trace.n);
       l2 = l2->next;
     }
   }
   else if (l2){
-    *l1p = copyTIdList(l2, callback);
+    *l1p = copyTIdList(l2);
   }
 }
 
 
-void delTIdFromList(tIdList** parr, LISTTYPE val, void (*callback)(void**)){
+void delTIdFromList(tIdList** parr, LISTTYPE val){
   tIdList* arr = *parr;
   tIdList* todel = NULL;
   if (arr->trace.n == val){ //Shift
@@ -215,18 +235,17 @@ void delTIdFromList(tIdList** parr, LISTTYPE val, void (*callback)(void**)){
       todel->next = NULL;
     }
   }
-  destroyTIdList(&todel, callback);
+  destroyTIdList(&todel);
 }
 
-void intersectTIdLists(tIdList** l1p, tIdList* l2, void (*callback)(void**)){
+void intersectTIdLists(tIdList** l1p, tIdList* l2){
   /*
   Both lists must be sorted in increasing order
-  NULL l2 lists are transparent
   */
   tIdList* l1 = *l1p;
   tIdList* tmp = l1;
   if (!l2){
-    destroyTIdList(l1p, callback);
+    destroyTIdList(l1p);
     *l1p = NULL;
   }
   else{
@@ -239,7 +258,7 @@ void intersectTIdLists(tIdList** l1p, tIdList* l2, void (*callback)(void**)){
       }
       else{
         tIdList* tmp2 = tmp->next;
-        delTIdFromList(l1p, tmp->trace.n, callback);
+        delTIdFromList(l1p, tmp->trace.n);
         tmp = tmp2;
       }
     }
@@ -288,9 +307,9 @@ traceLL* lastTraceLL(traceLL** tllp){
   return result;
 }
 
-void pushTrace(traceLL** tllp, tIdList* toadd, void (*callback)(void**)){
+void pushTrace(traceLL** tllp, tIdList* toadd){
   traceLL* nxt = lastTraceLL(tllp);
-  insertInTIdList(&nxt->tidl, toadd->trace.n, callback);
+  insertInTIdList(&nxt->tidl, toadd->trace.n);
 }
 //Adds traceLL at the end
 void nextTraceLL(traceLL** tllp){
@@ -301,11 +320,11 @@ void nextTraceLL(traceLL** tllp){
 
 
 
-void destroyTraceLL(traceLL** tll, void (*funcDestroyCirc)(void**)){
+void destroyTraceLL(traceLL** tll){
   traceLL* tmp = *tll;
   while (tmp){
     traceLL* nxt = tmp->next;
-    destroyTIdList(&tmp->tidl, funcDestroyCirc);
+    destroyTIdList(&tmp->tidl);
     free(tmp);
     tmp = nxt;
   }
@@ -321,19 +340,19 @@ void destroyTraceVessel(traceVessel** tvp){
 }
 
 
-tIdList* traceLast(tIdList* t, void (*callback)(void**)){
+tIdList* traceLast(tIdList* t){
   tIdList* result = NULL;
   tIdList* tmp = t;
   while (tmp){
     if (IS(tmp, LAST_IN_TRACE)){
-      insertInTIdList(&result, tmp->trace.n, callback);
+      insertInTIdList(&result, tmp->trace.n);
     }
     tmp = tmp->next;
   }
   return result;
 }
 
-bool isTraceFirst(tIdList** t, tIdList* which, void (*callback)(void**)){
+bool isTraceFirst(tIdList** t, tIdList* which){
   if (!t || !which) return false;
   bool result = true;
   traceVessel* tmpor = _getTraces(t, which);
@@ -350,7 +369,7 @@ bool isTraceFirst(tIdList** t, tIdList* which, void (*callback)(void**)){
   return result;
 }
 
-bool isTraceLast(tIdList** t, tIdList* which, void (*callback)(void**)){
+bool isTraceLast(tIdList** t, tIdList* which){
   if (!t || !which) return false;
   bool result = true;
   traceVessel* tmpor = _getTraces(t, which);
@@ -367,13 +386,13 @@ bool isTraceLast(tIdList** t, tIdList* which, void (*callback)(void**)){
   return result;
 }
 
-tIdList* traceFirst(tIdList** tp, void (*callback)(void**)){
+tIdList* traceFirst(tIdList** tp){
   tIdList* t = *tp;
   tIdList* result = NULL;
   tIdList* tmp = t;
   while (tmp){
     if (IS(tmp, FIRST_IN_TRACE)){
-      insertInTIdList(&result, tmp->trace.n, callback);
+      insertInTIdList(&result, tmp->trace.n);
     }
     tmp = tmp->next;
   }
@@ -485,12 +504,12 @@ void printTraceLL(traceLL* toprint){
   printf("==\n");
 }
 
-tIdList* circTraces(tIdList** t, bool extending, void (*callback)(void**)){
+tIdList* circTraces(tIdList** t, bool extending){
   tIdList* result = NULL;
   tIdList* tmp = *t;
   while (tmp){
     if ((!IS(tmp, CIRCULAR) || extending) && IS(tmp, IN_USE)){
-      insertInTIdList(&result, tmp->trace.n, callback);
+      insertInTIdList(&result, tmp->trace.n);
     }
     tmp = tmp->next;
   }

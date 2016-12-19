@@ -258,17 +258,47 @@ seqCollection* allTraces(kmerHolder** khp){
   return result;
 }
 
+uint16_t getTotalNumberOfReads(kcLL** kclp){
+  uint16_t result = 0;
+  kcLL* tmp = *kclp;
+  while (tmp){
+    result += tmp->kc->n;
+    tmp = tmp->next;
+  }
+  return result;
+}
+
+seqCollection* bestSeqCollection(seqCollection** scp){
+  seqCollection* sc = *scp;
+  seqCollection* result = sc;
+  uint16_t top = getTotalNumberOfReads(&sc->trace);
+  while (sc && sc->next){
+    sc = sc->next;
+    uint16_t n = getTotalNumberOfReads(&sc->trace);
+    if (n > top){
+      top = n;
+      result = sc;
+    }
+  }
+  return result;
+}
+
+void printSeq(kmerHolder** khp, seqCollection** scp){
+  seqCollection* sc = *scp;
+  if (sc->trace){
+    char* seq = getTraceSeq(khp, &sc->trace);
+    printf("%s\n", seq);
+    free(seq);
+  }
+}
+
 void printSeqCollection(kmerHolder** khp, seqCollection** scp){
   seqCollection* sc = *scp;
   uint32_t i = 0;
   while (sc){
     i++;
     printf(">trace%lu\n", (LUI) i);
-    if (sc->trace){
-      char* seq = getTraceSeq(khp, &sc->trace);
-      printf("%s\n", seq);
-      free(seq);
-    }
+    printSeq(khp, scp);
     sc = sc->next;
   }
 }

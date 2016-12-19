@@ -6,9 +6,6 @@
 #endif /* DEBUG */
 
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
-#define D_(a, ...) if (DEBUG >= a) printf(__VA_ARGS__);
-#define E_(a, b) if (DEBUG >= a){ printf("At %d: ", __LINE__); b; }
-#define P_(a) printf("%s at %d: %p\n", #a, __LINE__, a);
 #define SEQ(a, b) char* _seq = (char*) calloc(12, sizeof(char)); pos2seq(a, b->dest, _seq); printf("%s\n", _seq); free(_seq);
 
 #include <stdint.h>
@@ -67,8 +64,8 @@ typedef struct kC{
 
 typedef struct mll{
   kmerConnector* kc;
-  uint8_t flags;
-  uint32_t pos;
+  LISTTYPE ntid;
+  LISTTYPE posInTrace;
   struct mll* next;
   struct mll* last;
 } kcLL;
@@ -129,7 +126,7 @@ void printKmerConnectors(memstruct*, uint32_t);
 void printKc(memstruct*);
 void printRead(memstruct*);
 void printKcLL(memstruct*, kcLL*);
-void destroyTIdList(tIdList**, void (*callback)(void**));
+void destroyTIdList(tIdList**);
 kmerConnector* getConnector(memstruct**, uint32_t, uint32_t);
 void delConnector(kmerConnector**);
 
@@ -249,8 +246,8 @@ void destroyCircular(void** toDest){
 void destroyMs(memstruct** msp){
   memstruct* ms = *msp;
   resetKcLL(&ms->status->trace);
-  destroyTIdList(&ms->status->traceSet, destroyCircular);
-  destroyTIdList(&ms->status->extendMe, destroyCircular);
+  destroyTIdList(&ms->status->traceSet);
+  destroyTIdList(&ms->status->extendMe);
   free(ms->status);
   free(ms->bi->valBase);
   free(ms->bi->baseVal);
@@ -392,13 +389,13 @@ void nextId(memstruct* ms){
 }
 
 
-kcLL* newKcPointer(kmerConnector** newkcp){
+kcLL* newKcPointer(kmerConnector** newkcp, LISTTYPE ntid, LISTTYPE pos){
   kmerConnector* newkc = *newkcp;
   kcLL* result = (kcLL*) calloc(1, sizeof(kcLL));
   result->kc = newkc;
   result->next = NULL;
-  result->flags = 0x00;
-  result->pos   = 0x00000000;
+  result->ntid = ntid;
+  result->posInTrace = pos;
   result->last = result;
   return result;
 }
@@ -658,6 +655,61 @@ void findTraceSet(memstruct** msp){
     }
     ms->status->current = tmp->kc->dest;
     tmp = tmp->next;
+  }
+}
+
+void trimUncompatibleTraces(memstruct** msp, kmerConnector** nxt){
+  memstruct* ms = *msp;
+  kmerConnector* nextKc = *nxt;
+  kcLL* kcTrace = ms->status->trace;
+  kmerConnector* kc = kcTrace->kc;
+  tIdList* tl = kc->idflags;
+  while (tl){
+    tid = tl->trace.n;
+    kc = nextKc(&ms, &kc, tid);
+    if (!kc) return result;
+    result->trace->pos = startPos;
+    tIdList* thisTrace = _getTrace (&kc->idflags, tid);
+    tIdList* extra = NULL;
+    bool finishIt = IS(thisTrace, LAST_IN_TRACE);
+    while (kc && thisTrace && !finishIt){
+      kcpush(&result->trace, &kc);
+      kc = nextKc(&ms, &kc, tid);
+      if (kc){
+        thisTrace = _getTrace(&kc->idflags, tid);
+        //
+        tIdList* tmpextra = traceFirst(&kc->idflags, destroyCircular);
+        intersectTIdLists(&extra, kc->idflags, destroyCircular);
+        if (IS(thisTrace, LAST_IN_TRACE)){ // Shall we go on?
+          D_(1, "Last in trace\n");
+          while (extra){
+            D_(1, "Following\n");
+            if (!IS(extra, IN_USE)){
+              seqCollection* addme = recursivelyFollowTrace(khp, &kc, extra->trace.n, 0);
+              if (addme){
+                seqCollection* old = result;
+                D_(1, "Forking\n");
+                result = forkSeqCollections(&result, &addme);
+                destroySeqCollection(&old);
+                destroySeqCollection(&addme);
+              }
+            }
+            extra = extra->next;
+            //D_(1, "Passing to trace %lu\n", (LUI) extra->trace.n);
+          }
+          finishIt = true;
+        }
+        if (tmpextra){
+          mergeTIdLists(&extra, tmpextra, destroyCircular);
+        }
+      }
+    }
+    seqCollection* pointer = result;
+    while (pointer && pointer->trace){
+      clearTraceUse(&pointer->trace);
+      pointer = pointer->next;
+    }
+    tl = tl->next;
   }
 }
 
@@ -943,6 +995,8 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
   }
   else if (ms->status->addExistingTraceStatus == 1){
     intersectTIdLists(&ms->status->traceSet, kc->idflags, destroyCircular);
+    // Insert trim of incompatible kcs here!
+    trimUncompatibleTraces(msp, kc);
     if (!ms->status->traceSet){
       if (ms->status->extendMe){
         ms->status->addExistingTraceStatus = 2;

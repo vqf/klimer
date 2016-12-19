@@ -12,7 +12,7 @@
 
 int main(int argc,char** argv){
   srand((unsigned) time(NULL));
-  kmerHolder *km = initKmer(1, 4);
+  kmerHolder *km = initKmer(11, 4);
   char* dtext = "GTAAAAAAAAAAAAAAACGTACGTACGAGCT";
   uint8_t l = strlen(dtext);
   for (int i = 0; i < l; i++){
