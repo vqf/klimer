@@ -265,8 +265,8 @@ void intersectTIdLists(tIdList** l1p, tIdList* l2){
   }
 }
 
-
-bool isInTIdList(tIdList* arr, LISTTYPE val){
+bool isInTIdList(tIdList** arrp, LISTTYPE val){
+  tIdList *arr = *arrp;
   bool result = false;
   while (!result && arr){
     if (arr->trace.n == val){
@@ -392,6 +392,9 @@ tIdList* traceFirst(tIdList** tp){
   tIdList* tmp = t;
   while (tmp){
     if (IS(tmp, FIRST_IN_TRACE)){
+      if (tmp->posInTrace->trace.n > 1){
+        D_(0, "First in trace, but posInTrace is %lu\n", (long unsigned) tmp->posInTrace->trace.n);
+      }
       insertInTIdList(&result, tmp->trace.n);
     }
     tmp = tmp->next;
@@ -409,11 +412,17 @@ void pushTraceInVessel(traceVessel** tvp, tIdList** tp){
   ptr->next = (traceVessel*) newTraceLL();
 }
 
-tIdList* _getTrace(tIdList** tp, LISTTYPE i){
+tIdList* _getTrace(tIdList** tp, LISTTYPE i, LISTTYPE pos){
   tIdList* tmp = *tp;
   while (tmp){
     if (tmp->trace.n == i){
-      return tmp;
+      tIdList* intmp = tmp->posInTrace;
+      while (intmp){
+        intmp = intmp->next;
+        if (intmp->trace.n == pos){
+          return tmp;
+        }
+      }
     }
     tmp = tmp->next;
   }
