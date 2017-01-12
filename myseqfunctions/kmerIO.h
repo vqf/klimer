@@ -30,38 +30,6 @@ uint32_t* rebuildCirc(uint32_t l, uint32_t* arr){
   return result;
 }
 
-void rebuildFromCirc(kmerHolder** khp){
-  memstruct* ms = (*khp)->ms;
-  D_(2, "Rebuilding circ traces\n");
-  uint32_t i = 0;
-  for (i = 0; i < ms->nPos; i++){
-    kmerConnector* kc = ms->kmerArray[i];
-    if (kc && kc->n > 0){
-      while (kc){
-        tIdList* ptr = kc->idflags;
-        uint32_t orig = kc->dest;
-        while (ptr){
-          if (ptr->trace.circular){
-            kcLL* circ = NULL;
-            uint32_t* ns = (uint32_t*) ptr->trace.circular;
-            uint32_t lns = ns[0];
-            uint32_t j = 0;
-            for (j = 0; j < lns; j++){
-              uint32_t dest = ns[j + 1];
-              kmerConnector* kc = getConnector(&ms, orig, dest);
-              D_(2, "Adding kc from %lu to %lu\n", (LUI) orig, (LUI) dest);
-              kcpush(&circ, &kc);
-            }
-            free(ptr->trace.circular); ptr->trace.circular = NULL;
-            ptr->trace.circular = circ;
-          }
-          ptr = ptr->next;
-        }
-        kc = kc->next;
-      }
-    }
-  }
-}
 
 uint8_t writeOut(kmerHolder** khp, char* fname){
   kmerHolder* kh = *khp;
@@ -91,12 +59,11 @@ uint8_t writeOut(kmerHolder** khp, char* fname){
             fwrite(&ids->trace.n, sizeof(LISTTYPE), 1, fout);
             fwrite(&ids->trace.flag, sizeof(uint8_t), 1, fout);
             fwrite(&ids->trace.nReads, sizeof(uint32_t), 1, fout);
-            kcLL* loops = (kcLL*) ids->trace.circular;
-            uint32_t ll = lengthKcll(&loops);
-            D_(2, "Has %lu loops\n", (LUI) ll);
+            uint32_t ll = tIdListLength(&ids->posInTrace);
             fwrite(&ll, sizeof(uint32_t), 1, fout);
+            tIdList* loops = ids->posInTrace;
             while (loops){
-              fwrite(&loops->kc->dest, sizeof(uint32_t), 1, fout);
+              fwrite(&loops->trace.n, sizeof(uint32_t), 1, fout);
               loops = loops->next;
             }
             D_(2, "-Next trace\n");
@@ -156,13 +123,29 @@ kmerHolder* readIn(char* file){
           thisId->trace.flag = flag;
           thisId->trace.nReads = nReads;
           totalReads += nReads;
-          uint32_t* circ = NULL;
+          tIdList* posPtr = thisId->posInTrace;
           if (fread(&lSize, sizeof(uint32_t), 1, fin)){
-            D_(2, "Has %lu loops\n", (LUI) lSize);
-            if (lSize){
-              circ = (uint32_t*) calloc(lSize, sizeof(uint32_t));
-              fread(circ, sizeof(uint32_t), lSize, fin);
-              thisId->trace.circular = rebuildCirc(lSize, circ);
+            D_(2, "Has %lu posInTrace\n", (LUI) lSize);
+            uint32_t j = 0;
+            for (j = 0; j < lSize; j++){
+              LISTTYPE pn;
+              uint8_t pflag;
+              uint32_t preads;
+              fread(&pn, sizeof(LISTTYPE), 1, fin);
+              fread(&pflag, sizeof(uint8_t), 1, fin);
+              fread(&preads, sizeof(uint32_t), 1, fin);
+              tIdList* thisPos = newTIdList(pn);
+              thisPos->trace.flag   = pflag;
+              thisPos->trace.nReads = preads;
+              thisPos = thisPos->next;
+              if (posPtr){
+                posPtr->next = thisPos;
+                posPtr = posPtr->next;
+              }
+              else{
+                thisId->posInTrace = thisPos;
+                posPtr = thisPos;
+              }
             }
           }
           if (idPtr){
@@ -180,7 +163,6 @@ kmerHolder* readIn(char* file){
       success = fread(&dest, sizeof(uint32_t), 1, fin);
     }
     fclose(fin);
-    rebuildFromCirc(&result);
     cleanTraceStatus(&result);
     result->ms->status->current = 0;
     result->ms->status->cId = 0;

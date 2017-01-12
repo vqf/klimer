@@ -74,11 +74,11 @@ char getLastBase(kmerHolder** khp, uint32_t pos){
   return result;
 }
 
-kcLL* followTrace(kmerHolder** khp, uint32_t pos, LISTTYPE tid){
+kcLL* followTrace(kmerHolder** khp, uint32_t pos, LISTTYPE tid, LISTTYPE posInTrace){
   kcLL* result = NULL;
   memstruct* ms = (*khp)->ms;
-  kmerConnector* kc = getKcWithTId(&ms, pos, tid);
-  tIdList* thisTrace = _getTrace(&kc->idflags, tid);
+  kmerConnector* kc = getKcWithTId(&ms, pos, tid, posInTrace);
+  tIdList* thisTrace = _getTrace(&kc->idflags, tid, posInTrace);
   while (kc && !IS(thisTrace, LAST_IN_TRACE)){
 
     E_(1,
@@ -90,12 +90,12 @@ kcLL* followTrace(kmerHolder** khp, uint32_t pos, LISTTYPE tid){
       //getc(stdin)
     );
 
-    kcpush(&result, &kc);
-    kc = nextKc(&ms, &kc, tid);
-    if (kc) thisTrace = _getTrace(&kc->idflags, tid);
+    kcpush(&result, &kc, tid, posInTrace);
+    kc = nextKc(&ms, &kc, tid, posInTrace);
+    posInTrace++;
+    if (kc) thisTrace = _getTrace(&kc->idflags, tid, posInTrace);
   }
-  if (kc) kcpush(&result, &kc);
-  if (result) result->pos = pos;
+  if (kc) kcpush(&result, &kc, tid, posInTrace);
   return result;
 }
 
@@ -113,7 +113,7 @@ kcLL* nextTrace(kmerHolder** khp){
           SET(l, IN_USE);
           D_(2, "Found starting trace at %lu\n", (LUI) i);
           ms->status->current = i;
-          result = followTrace(khp, i, l->trace.n);
+          result = followTrace(khp, i, l->trace.n, 1);
           return result;
         }
         l = l->next;
@@ -133,7 +133,7 @@ char* getTraceSeq(kmerHolder** khp, kcLL** kcp){
   SCALAR(tmp, l);
   uint32_t cl = (uint32_t) (kh->kmerSize + l + 1);
   char* result = (char*) calloc((size_t) cl, sizeof(char));
-  pos2seq(&kh->ms, kcll->pos, result);
+  pos2seq(&kh->ms, kcll->kc->dest, result);
   uint32_t j = (uint32_t) (kh->kmerSize);
   while (kcll){
     result[j] = getLastBase(khp, kcll->kc->dest);
@@ -181,31 +181,31 @@ seqCollection* forkSeqCollections(seqCollection** sc1p, seqCollection** sc2p){
   return result;
 }
 
-seqCollection* recursivelyFollowTrace(kmerHolder** khp, kmerConnector** kcp, LISTTYPE tid, uint32_t startPos){
+seqCollection* recursivelyFollowTrace(kmerHolder** khp, kmerConnector** kcp, LISTTYPE tid, LISTTYPE posInTrace, uint32_t startPos){
   seqCollection* result = newSeqCollection();
   memstruct* ms = (*khp)->ms;
   kmerConnector* kc = *kcp;
-  kcpush(&result->trace, &kc);
-  kc = nextKc(&ms, &kc, tid);
+  kcpush(&result->trace, &kc, tid, posInTrace);
+  kc = nextKc(&ms, &kc, tid, posInTrace);
   if (!kc) return result;
-  result->trace->pos = startPos;
-  tIdList* thisTrace = _getTrace(&kc->idflags, tid);
+  tIdList* thisTrace = _getTrace(&kc->idflags, tid, posInTrace);
   tIdList* extra = NULL;
   bool finishIt = IS(thisTrace, LAST_IN_TRACE);
+  posInTrace++;
   while (kc && thisTrace && !finishIt){
-    kcpush(&result->trace, &kc);
-    kc = nextKc(&ms, &kc, tid);
+    kcpush(&result->trace, &kc, tid, posInTrace);
+    kc = nextKc(&ms, &kc, tid, posInTrace);
     if (kc){
-      thisTrace = _getTrace(&kc->idflags, tid);
+      thisTrace = _getTrace(&kc->idflags, tid, posInTrace);
       //
-      tIdList* tmpextra = traceFirst(&kc->idflags, destroyCircular);
-      intersectTIdLists(&extra, kc->idflags, destroyCircular);
+      tIdList* tmpextra = traceFirst(&kc->idflags);
+      intersectTIdLists(&extra, kc->idflags);
       if (IS(thisTrace, LAST_IN_TRACE)){ // Shall we go on?
         D_(1, "Last in trace\n");
         while (extra){
           D_(1, "Following\n");
           if (!IS(extra, IN_USE)){
-            seqCollection* addme = recursivelyFollowTrace(khp, &kc, extra->trace.n, 0);
+            seqCollection* addme = recursivelyFollowTrace(khp, &kc, extra->trace.n, posInTrace, 0);
             if (addme){
               seqCollection* old = result;
               D_(1, "Forking\n");
@@ -220,9 +220,10 @@ seqCollection* recursivelyFollowTrace(kmerHolder** khp, kmerConnector** kcp, LIS
         finishIt = true;
       }
       if (tmpextra){
-        mergeTIdLists(&extra, tmpextra, destroyCircular);
+        mergeTIdLists(&extra, tmpextra);
       }
     }
+    posInTrace++;
   }
   seqCollection* pointer = result;
   while (pointer && pointer->trace){
@@ -246,7 +247,7 @@ seqCollection* allTraces(kmerHolder** khp){
         if (IS(ti, FIRST_IN_TRACE)){
           D_(1, "Found starting trace at %lu\n", (LUI) i);
           SET(ti, IN_USE);
-          seqCollection* newseqs = recursivelyFollowTrace(khp, &tc, ti->trace.n, i);
+          seqCollection* newseqs = recursivelyFollowTrace(khp, &tc, ti->trace.n, 1, i);
           pointer->next = newseqs;
           pointer = newseqs;
         }

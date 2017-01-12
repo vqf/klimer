@@ -145,10 +145,10 @@ LISTTYPE maxInList(tIdList* l){
   return result;
 }
 
-void insertInTIdList(tIdList** Iarr, LISTTYPE val){
+tIdList* insertInTIdList(tIdList** Iarr, LISTTYPE val){
   if (!*Iarr){
     *Iarr = newTIdList(val);
-    return;
+    return *Iarr;
   }
   tIdList* arr = *Iarr;
   if (arr){
@@ -157,6 +157,7 @@ void insertInTIdList(tIdList** Iarr, LISTTYPE val){
     if (val < p->trace.n){ //Unshift
       nxt->next = *Iarr;
       *Iarr = nxt;
+      return nxt;
     }
     else{
       while(p->next && p->next->trace.n < val){
@@ -165,33 +166,44 @@ void insertInTIdList(tIdList** Iarr, LISTTYPE val){
       if (p->next){ //Insert
         if (p->trace.n == val || p->next->trace.n == val){
           destroyTIdList(&nxt);
-          return;
+          return p;
         }
         tIdList* cnt = p->next;
         p->next = nxt;
         nxt->next = cnt;
+        return nxt;
       }
       else{ //Push
         if (p->trace.n == val){
           destroyTIdList(&nxt);
-          return;
+          return p;
         }
         p->next = nxt;
+        return nxt;
       }
     }
   }
   else{
     arr = newTIdList(val);
     *Iarr = arr;
+    return arr;
   }
 }
 
+tIdList* addTrace(tIdList** tlp, LISTTYPE i){
+  tIdList* r = insertInTIdList(tlp, i);
+  r->trace.nReads++;
+  return r;
+}
+
 void addPosInTrace(tIdList** ap, LISTTYPE pos){
-  insertInTIdList((&(*ap)->posInTrace), pos);
+  tIdList* r = insertInTIdList((&(*ap)->posInTrace), pos);
+  r->trace.nReads++;
 }
 
 
-tIdList* copyTIdList(tIdList* tocopy){
+tIdList* copyTIdList(tIdList** tocopyp){
+  tIdList* tocopy = *tocopyp;
   tIdList* result = NULL;
   if (!tocopy){
     return result;
@@ -199,6 +211,11 @@ tIdList* copyTIdList(tIdList* tocopy){
   tIdList* tmp = tocopy;
   while(tmp){
     insertInTIdList(&result, tmp->trace.n);
+    tIdList* pos = tmp->posInTrace;
+    while (pos){
+      insertInTIdList(&result->posInTrace, pos->trace.n);
+      pos = pos->next;
+    }
     tmp = tmp->next;
   }
   return result;
@@ -212,7 +229,7 @@ void mergeTIdLists(tIdList** l1p, tIdList* l2){
     }
   }
   else if (l2){
-    *l1p = copyTIdList(l2);
+    *l1p = copyTIdList(&l2);
   }
 }
 
