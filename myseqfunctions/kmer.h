@@ -2,7 +2,7 @@
 #define KMER_H_INCLUDED
 
 #ifndef DEBUG
-#define DEBUG 0
+#define DEBUG 2
 #endif /* DEBUG */
 
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
@@ -92,6 +92,7 @@ typedef struct st{
   bool extendMeUp;      // Which tIds can be extended?
   bool extendMeDn;      // Which tIds can be extended?
   tIdList* extendMe;
+  traceLL* inUse;       // Which lists are in use
   tSet* traceSet; // Keep tab of trace IDs the current read belongs to
   LISTTYPE cId;      // Current id for kmerConnector
   kcLL* trace;      // Keeps track of the related kmers in the current trace
@@ -99,7 +100,7 @@ typedef struct st{
   uint32_t current; // Last kmer read
   bool start;       // No kc has still been filled
   bool isFirst;     // Is it the first in a trace?
-  uint8_t addExistingTraceStatus; // See _existingTrace
+  uint8_t addExistingTraceStatus; // See _existingTrac
 } msStatus;
 
 
@@ -135,6 +136,8 @@ void printKcLL(memstruct*, kcLL*);
 void destroyTIdList(tIdList**);
 kmerConnector* getConnector(memstruct**, uint32_t, uint32_t);
 void delConnector(kmerConnector**);
+void cleanTraceStatus(kmerHolder**);
+
 
 uint32_t lengthKcll(kcLL** lp){
   kcLL* l = *lp;
@@ -170,6 +173,7 @@ msStatus* initStatus(){
   result->trace = NULL;
   result->addExistingTraceStatus = 0;
   result->extendMe = NULL;
+  result->inUse = NULL;
   result->extendMeUp = false;
   result->extendMeDn = false;
   result->traceSet = (tSet*) calloc(1, sizeof(tSet));
@@ -259,6 +263,7 @@ void destroyMs(memstruct** msp){
   destroyTIdList(&ms->status->traceSet->current);
   free(ms->status->traceSet);
   destroyTIdList(&ms->status->extendMe);
+  destroyTraceLL(&ms->status->inUse);
   free(ms->status);
   free(ms->bi->valBase);
   free(ms->bi->baseVal);
@@ -533,34 +538,15 @@ kmerConnector* getKcWithTId(memstruct** msp, uint32_t pos, LISTTYPE tid, LISTTYP
   }*/
   return result;
 }
-/*
-bool isNextInConflict(memstruct** msp, uint32_t pos, LISTTYPE tid){
-  bool result = false;
-  memstruct* ms = *msp;
-  kmerConnector* kc = ms->kmerArray[pos];
-  kmerConnector* nxt = NULL;
-  while (kc){
-    tIdList* tt = _getTrace(&kc->idflags, tid);
-    if (tt){
-      if (nxt){
-        if (!IS(tt, FIRST_IN_TRACE) && !IS(tt, LAST_IN_TRACE)){
-          result = true;
-        }
-      }
-      else{
-        nxt = kc;
-      }
-    }
-    kc = kc->next;
-  }
-  return result;
-}
-*/
+
 kmerConnector* nextKc(memstruct** msp, kmerConnector** kcp, LISTTYPE i, LISTTYPE pos){
   kmerConnector* kc = *kcp;
   D_(2, "From %.8x\n", (unsigned int) kc->uid);
   kmerConnector* result = NULL;
-  result = getKcWithTId(msp, kc->dest, i, pos);
+  tIdList* t = isInTIdList(&kc->idflags, i);
+  if (t){
+    result = getKcWithTId(msp, kc->dest, i, pos + 1);
+  }
   return result;
 }
 
@@ -620,25 +606,53 @@ void cleanTraceStatus(kmerHolder** khp){
   ms->status->trace = NULL;
 }
 
+
+void shiftPosInTrace(memstruct** msp, kmerConnector** kcp, tIdList** tp, LISTTYPE n){
+  memstruct* ms = *msp;
+  tIdList* t = *tp;
+  while (t){
+    LISTTYPE i = t->trace.n;
+    kmerConnector* kc = *kcp;
+    tIdList* tmp = isInTIdList(&kc->idflags, i);
+    LISTTYPE old = tmp->posInTrace->trace.n;
+    while (kc){
+      if (tmp){
+        tIdList* ps = isInTIdList(&tmp->posInTrace, old);
+        SET(ps, IN_USE);
+        pushTrace(&ms->status->inUse, &ps);
+        ps->trace.n += n;
+        old++;
+        kc = getKcWithTId(msp, kc->dest, i, old);
+        if (kc) tmp = isInTIdList(&kc->idflags, i);
+      }
+    }
+    t = t->next;
+  }
+  // Clean inUse
+  traceLL* toClean = ms->status->inUse;
+  while (toClean){
+    tIdList* tc = toClean->tidl;
+    UNSET(tc, IN_USE);
+    toClean = toClean->next;
+  }
+  destroyTraceLL(&ms->status->inUse);
+}
+
 void resetTrace(kmerHolder** kp){
   memstruct* ms = (*kp)->ms;
   kcLL** tmpp = &ms->status->trace;
   kcLL* tmp = *tmpp;
   bool firstInRead = true;
-  bool extendingUp = false;
+  bool extendingUp = ms->status->extendMeUp;
   bool extendingDn = false;
   bool newTrace = (ms->status->addExistingTraceStatus == 0 || ms->status->addExistingTraceStatus == 3);
+  bool inside = (!(ms->status->extendMeUp || ms->status->extendMeDn));
   D_(1, "Resetting trace with status %d\n", ms->status->addExistingTraceStatus);
-  tIdList* tracesToAdd = NULL;
+  LISTTYPE cposInTrace = 1;  // Used for newTrace and extendingUp
   if (newTrace){
     nextId(&ms);
+    ms->status->traceSet->starting = newTIdList(ms->status->cId);
     D_(1, "This is a new trace\n");
-    if (ms->status->traceSet){
-       D_(0, "Warning: traceSet not empty at newTrace\n");
-      destroyTIdList(&ms->status->traceSet->starting);
-      destroyTIdList(&ms->status->traceSet->current);
-    }
-    LISTTYPE cposInTrace = 1;
     while (tmp){
       tIdList* tl = addTrace(&tmp->kc->idflags, ms->status->cId);
       addPosInTrace(&tl, cposInTrace);
@@ -648,11 +662,59 @@ void resetTrace(kmerHolder** kp){
   }
   else{
     //Find out and add traceSet (passed to traceToAdd).
-    tracesToAdd = copyTIdList(&ms->status->traceSet->starting);
-    if (ms->status->extendMeUp){
-      extendingUp = true; // Until we get to first_in_trace
+    if (inside){
+      D_(1, "Does not extend\n");
+    }
+    else if (extendingUp){
       D_(1, "Extending Up\n");
     }
+    while (tmp){
+      if (extendingUp){
+        if (isFirst(&tmp->kc->idflags, ms->status->traceSet->starting)){
+          D_(1, "Reached beginning of existing traces\n");
+          unsetAsFirst(&tmp->kc->idflags, tmp->kc->idflags);
+          shiftPosInTrace(&ms, &tmp->kc, &ms->status->traceSet->starting, cposInTrace - 1);
+        }
+        tIdList* clist = ms->status->traceSet->starting;
+        while (clist){
+          tIdList* tl = addTrace(&tmp->kc->idflags, clist->trace.n);
+          addPosInTrace(&tl, cposInTrace);
+          D_(2, "Adding %lu\n", (LUI) cposInTrace);
+          clist = clist->next;
+        }
+        cposInTrace++;
+      }
+      else{
+        tIdList* clist = ms->status->traceSet->starting;
+        while (clist){
+          tIdList* cPos = clist->posInTrace;
+          tIdList* tl = addTrace(&tmp->kc->idflags, clist->trace.n);
+          while (cPos){
+            tIdList* tPos = addPosInTrace(&tl, cPos->trace.n);
+            tPos->trace.n++;
+            cPos = cPos->next;
+          }
+          clist = clist->next;
+        }
+        if (ms->status->extendMeDn){
+          if (isLast(&tmp->kc->idflags, ms->status->traceSet->starting)){
+            D_(1, "Now extending down\n");
+            unsetAsLast(&tmp->kc->idflags, ms->status->traceSet->starting);
+          }
+        }
+      }
+      tmp = tmp->next;
+    }
+  }
+  if (newTrace || ms->status->extendMeUp){
+    setAsFirst(&ms->status->trace->kc->idflags, ms->status->traceSet->starting);
+    D_(1, "Marking as first: %.8x, traces ", ms->status->trace->kc->uid);
+    E_(1, printTIdList(ms->status->traceSet->starting));
+    D_(1, "\n");
+  }
+  if (newTrace || ms->status->extendMeDn){
+    setAsLast(&ms->status->trace->last->kc->idflags, ms->status->traceSet->starting);
+    D_(1, "Marking as last: %.8x\n", ms->status->trace->last->kc->uid);
   }
   if (tmpp && tmp){
     E_(1, printTIdList(ms->status->traceSet->starting));
@@ -687,7 +749,6 @@ void resetTrace(kmerHolder** kp){
       D_(1, "Marking as last: %.8x\n", ms->status->trace->last->kc->uid);
     }
   }
-  destroyTIdList(&tracesToAdd);
   cleanTraceStatus(kp);
 }
 
@@ -735,20 +796,26 @@ void delConnector(kmerConnector** kcp){
   *kcp = NULL;
 }
 
-void trimUncompatibleTraces(memstruct** msp, tSet** tp, kmerConnector** nxtp){
-  memstruct* ms = *msp;
+void trimIncompatibleTraces(tSet** tp, kmerConnector** nxtp){
   tSet* t    = *tp;
   kmerConnector* nxt = *nxtp;
   intersectTIdLists(&t->starting, nxt->idflags);
   intersectTIdLists(&t->current, nxt->idflags);
+  E_(2, printTIdList(t->current));
   tIdList* current = t->current;
   while (current){
     tIdList* tPos = current->posInTrace;
     while (tPos){
       LISTTYPE nnext = tPos->trace.n + 1;
+      E_(2, printTIdList(tPos));
       tIdList* todel = tPos;
       tPos = tPos->next;
-      if (!isInTIdList(&nxt->idflags, nnext)){
+      tIdList* nextPos = isInTIdList(&nxt->idflags->posInTrace, nnext);
+      if (nextPos){
+        todel->trace.n++;
+        D_(2, "Following posInTrace %lu\n", (LUI) nextPos->trace.n);
+      }
+      else{
         delTIdFromList(&t->current->posInTrace, todel->trace.n);
       }
     }
@@ -788,18 +855,16 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
       destroyTIdList(&ms->status->traceSet->current);
       tIdList* fst = traceFirst(&kc->idflags);
       if (fst){
-        ms->status->traceSet->starting = copyTIdList(fst);
-        ms->status->traceSet->current  = copyTIdList(fst);
+        ms->status->traceSet->starting = copyTIdList(&fst);
+        ms->status->traceSet->current  = copyTIdList(&fst);
         ms->status->extendMeUp = true;
         ms->status->addExistingTraceStatus = 1;
         D_(2, "Found an existing trace: 0 to 1\n");
       }
-      else if (ms->status->isFirst){
-        ms->status->isFirst = false;
+      else if (ms->status->isFirst && kc->idflags){
         ms->status->extendMeUp = false;
-        ms->status->traceSet->starting = copyTIdList(kc->idflags);
-        ms->status->traceSet->current  = copyTIdList(kc->idflags);
-        //TODO: Copy all posintrace
+        ms->status->traceSet->starting = copyTIdList(&kc->idflags);
+        ms->status->traceSet->current  = copyTIdList(&kc->idflags);
         ms->status->addExistingTraceStatus = 1;
         D_(2, "Inside, not extending: 0 to 1\n");
       }
@@ -813,13 +878,13 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
     }
   }
   else if (ms->status->addExistingTraceStatus == 1){
-    trimUncompatibleTraces(msp, &ms->status->traceSet, kcp);
+    trimIncompatibleTraces(&ms->status->traceSet, kcp);
     if (!ms->status->traceSet->starting){
       if (ms->status->extendMe){
         ms->status->addExistingTraceStatus = 2;
         intersectTIdLists(&ms->status->traceSet->starting, ms->status->extendMe);
         destroyTIdList(&ms->status->traceSet->current);
-        ms->status->traceSet->current = copyTIdList(ms->status->extendMe);
+        ms->status->traceSet->current = copyTIdList(&ms->status->extendMe);
         ms->status->extendMeDn = true;
         D_(2, "Extending existing traces: 1 to 2\n");
       }
@@ -854,6 +919,7 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
       D_(2, "Conflict: 2 to 3\n");
     }
   }
+  if (ms->status->isFirst) ms->status->isFirst = false;
   D_(2, "TraceStatus: %d\n", ms->status->addExistingTraceStatus);
 }
 

@@ -60,10 +60,13 @@ uint8_t writeOut(kmerHolder** khp, char* fname){
             fwrite(&ids->trace.flag, sizeof(uint8_t), 1, fout);
             fwrite(&ids->trace.nReads, sizeof(uint32_t), 1, fout);
             uint32_t ll = tIdListLength(&ids->posInTrace);
+            D_(2, "Has %lu Pos\n", (LUI) ll);
             fwrite(&ll, sizeof(uint32_t), 1, fout);
             tIdList* loops = ids->posInTrace;
             while (loops){
               fwrite(&loops->trace.n, sizeof(uint32_t), 1, fout);
+              fwrite(&loops->trace.flag, sizeof(uint8_t), 1, fout);
+              fwrite(&loops->trace.nReads, sizeof(uint32_t), 1, fout);
               loops = loops->next;
             }
             D_(2, "-Next trace\n");
@@ -137,7 +140,6 @@ kmerHolder* readIn(char* file){
               tIdList* thisPos = newTIdList(pn);
               thisPos->trace.flag   = pflag;
               thisPos->trace.nReads = preads;
-              thisPos = thisPos->next;
               if (posPtr){
                 posPtr->next = thisPos;
                 posPtr = posPtr->next;

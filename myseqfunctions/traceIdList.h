@@ -57,10 +57,9 @@ typedef struct iarr{
   struct iarr* next;
 } tIdList;
 
+
 typedef struct traceLL{
   tIdList* tidl;
-  LISTTYPE traceId;
-  LISTTYPE posInTrace;
   struct traceLL* next;
 } traceLL;
 
@@ -86,11 +85,21 @@ void printTIdList(tIdList* a){
     return;
   }
   while(a){
-    printf("[");
-    printf("%d (%u)", a->trace.n, (short unsigned) a->trace.nReads);
+    if (a->posInTrace){
+      printf("[");
+    }
+    else{
+      printf("{");
+    }
+    printf("%d %01x (%u)", a->trace.n, a->trace.flag, (short unsigned) a->trace.nReads);
     if (a->posInTrace) printf(", ");
     printTIdList(a->posInTrace);
-    printf("]");
+    if (a->posInTrace){
+      printf("]");
+    }
+    else{
+      printf("}");
+    }
     a = a->next;
     if (a) printf(", ");
   }
@@ -119,14 +128,14 @@ void destroyTIdList(tIdList** todel){
     if (tmp->posInTrace) destroyTIdList(&tmp->posInTrace);
     free(tmp);
   }
+  *todel = NULL;
 }
 
 
 traceLL* newTraceLL(){
   traceLL* result = (traceLL*) calloc(1, sizeof(traceLL));
   result->tidl = NULL;
-  result->posInTrace = 0;
-  result->traceId = 0;
+  result->next = NULL;
   return result;
 }
 
@@ -152,9 +161,9 @@ tIdList* insertInTIdList(tIdList** Iarr, LISTTYPE val){
   }
   tIdList* arr = *Iarr;
   if (arr){
-    tIdList* nxt = newTIdList(val);
     tIdList* p = arr;
     if (val < p->trace.n){ //Unshift
+      tIdList* nxt = newTIdList(val);
       nxt->next = *Iarr;
       *Iarr = nxt;
       return nxt;
@@ -165,9 +174,10 @@ tIdList* insertInTIdList(tIdList** Iarr, LISTTYPE val){
       }
       if (p->next){ //Insert
         if (p->trace.n == val || p->next->trace.n == val){
-          destroyTIdList(&nxt);
-          return p;
+          if (p->trace.n == val) return p;
+          if (p->next->trace.n == val) return p->next;
         }
+        tIdList* nxt = newTIdList(val);
         tIdList* cnt = p->next;
         p->next = nxt;
         nxt->next = cnt;
@@ -175,9 +185,9 @@ tIdList* insertInTIdList(tIdList** Iarr, LISTTYPE val){
       }
       else{ //Push
         if (p->trace.n == val){
-          destroyTIdList(&nxt);
           return p;
         }
+        tIdList* nxt = newTIdList(val);
         p->next = nxt;
         return nxt;
       }
@@ -196,9 +206,10 @@ tIdList* addTrace(tIdList** tlp, LISTTYPE i){
   return r;
 }
 
-void addPosInTrace(tIdList** ap, LISTTYPE pos){
+tIdList* addPosInTrace(tIdList** ap, LISTTYPE pos){
   tIdList* r = insertInTIdList((&(*ap)->posInTrace), pos);
   r->trace.nReads++;
+  return r;
 }
 
 
@@ -246,6 +257,11 @@ void delTIdFromList(tIdList** parr, LISTTYPE val){
     while (arr->next && arr->next->trace.n < val){
       arr = arr->next;
     }
+    if (arr->next->trace.n == val && !arr->next){
+      destroyTIdList(parr);
+      *parr = NULL;
+      return;
+    }
     if (arr->next && arr->next->trace.n == val){
       todel = arr->next;
       arr->next = arr->next->next;
@@ -282,15 +298,12 @@ void intersectTIdLists(tIdList** l1p, tIdList* l2){
   }
 }
 
-bool isInTIdList(tIdList** arrp, LISTTYPE val){
+tIdList* isInTIdList(tIdList** arrp, LISTTYPE val){
   tIdList *arr = *arrp;
-  bool result = false;
+  tIdList* result = NULL;
   while (!result && arr){
-    if (arr->trace.n == val){
-      result = true;
-    }
-    else if (arr->trace.n > val){
-      return false;
+    if (!IS(arr, IN_USE) && arr->trace.n == val){
+      result = arr;
     }
     arr = arr->next;
   }
@@ -318,15 +331,27 @@ bool isIncluded(tIdList** universe, tIdList** subset){
 //Pushes trace copy into the last traceLL
 traceLL* lastTraceLL(traceLL** tllp){
   traceLL* result = *tllp;
-  while (result->next){
-    result = result->next;
+  if (result){
+    while (result->next){
+      result = result->next;
+    }
   }
   return result;
 }
 
-void pushTrace(traceLL** tllp, tIdList* toadd){
-  traceLL* nxt = lastTraceLL(tllp);
-  insertInTIdList(&nxt->tidl, toadd->trace.n);
+void pushTrace(traceLL** tllp, tIdList** toaddp){
+  traceLL* tll = *tllp;
+  tIdList* toadd = *toaddp;
+  if (!tll){
+    *tllp = newTraceLL();
+    tll = *tllp;
+    tll->tidl = toadd;
+  }
+  else{
+    traceLL* lst = lastTraceLL(tllp);
+    lst->next = newTraceLL();
+    lst->next->tidl = toadd;
+  }
 }
 //Adds traceLL at the end
 void nextTraceLL(traceLL** tllp){
@@ -341,10 +366,10 @@ void destroyTraceLL(traceLL** tll){
   traceLL* tmp = *tll;
   while (tmp){
     traceLL* nxt = tmp->next;
-    destroyTIdList(&tmp->tidl);
     free(tmp);
     tmp = nxt;
   }
+  *tll = NULL;
 }
 
 void destroyTraceVessel(traceVessel** tvp){
@@ -354,6 +379,7 @@ void destroyTraceVessel(traceVessel** tvp){
     free(tmp);
     tmp = nxt;
   }
+  *tvp = NULL;
 }
 
 
@@ -412,7 +438,8 @@ tIdList* traceFirst(tIdList** tp){
       if (tmp->posInTrace->trace.n > 1){
         D_(0, "First in trace, but posInTrace is %lu\n", (long unsigned) tmp->posInTrace->trace.n);
       }
-      insertInTIdList(&result, tmp->trace.n);
+      tIdList* ptr = insertInTIdList(&result, tmp->trace.n);
+      insertInTIdList(&ptr->posInTrace, 1);
     }
     tmp = tmp->next;
   }
@@ -435,10 +462,10 @@ tIdList* _getTrace(tIdList** tp, LISTTYPE i, LISTTYPE pos){
     if (tmp->trace.n == i){
       tIdList* intmp = tmp->posInTrace;
       while (intmp){
-        intmp = intmp->next;
         if (intmp->trace.n == pos){
           return tmp;
         }
+        intmp = intmp->next;
       }
     }
     tmp = tmp->next;
@@ -466,15 +493,43 @@ traceVessel* _getTraces(tIdList** tp, tIdList* which){
   return result;
 }
 
-void setCircular (tIdList** t, tIdList* which){
-  if (!which) return;
+
+bool isFirst(tIdList** t, tIdList* which){
+  if (!which) return false;
+  bool result = false;
   traceVessel* tmp = _getTraces(t, which);
   traceVessel* ptr = tmp;
   while (ptr->tidl){
-    SET(ptr->tidl, CIRCULAR);
+    if (IS(ptr->tidl, FIRST_IN_TRACE)){
+      result = true;
+    }
+    else{
+      destroyTraceVessel(&tmp);
+      return false;
+    }
     ptr = ptr->next;
   }
   destroyTraceVessel(&tmp);
+  return result;
+}
+
+bool isLast(tIdList** t, tIdList* which){
+  if (!which) return false;
+  bool result = false;
+  traceVessel* tmp = _getTraces(t, which);
+  traceVessel* ptr = tmp;
+  while (ptr->tidl){
+    if (IS(ptr->tidl, LAST_IN_TRACE)){
+      result = true;
+    }
+    else{
+      destroyTraceVessel(&tmp);
+      return false;
+    }
+    ptr = ptr->next;
+  }
+  destroyTraceVessel(&tmp);
+  return result;
 }
 
 void setAsFirst (tIdList** t, tIdList* which){
@@ -483,6 +538,7 @@ void setAsFirst (tIdList** t, tIdList* which){
   traceVessel* ptr = tmp;
   while (ptr->tidl){
     SET(ptr->tidl, FIRST_IN_TRACE);
+    SET(ptr->tidl->posInTrace, FIRST_IN_TRACE); // Should be position 1
     ptr = ptr->next;
   }
   destroyTraceVessel(&tmp);
@@ -493,6 +549,11 @@ void setAsLast (tIdList** t, tIdList* which){
   traceVessel* ptr = tmp;
   while (ptr->tidl){
     SET(ptr->tidl, LAST_IN_TRACE);
+    tIdList* pos = ptr->tidl->posInTrace;
+    while (pos->next){
+      pos = pos->next;
+    }
+    SET(pos, LAST_IN_TRACE);
     ptr = ptr->next;
   }
   destroyTraceVessel(&tmp);
@@ -563,6 +624,7 @@ void unsetAsFirst(tIdList** t, tIdList* which){
     if (IS(ptr->tidl, FIRST_IN_TRACE)){
       UNSET(ptr->tidl, FIRST_IN_TRACE);
       D_(1, "Unsetting first in %lu\n", (LUI) ptr->tidl->trace.n);
+      UNSET(ptr->tidl->posInTrace, FIRST_IN_TRACE);
     }
     ptr = ptr->next;
   }
@@ -577,6 +639,11 @@ void unsetAsLast(tIdList** t, tIdList* which){
       UNSET(ptr->tidl, LAST_IN_TRACE);
       D_(1, "Unsetting last in %lu\n", (LUI) ptr->tidl->trace.n);
     }
+    tIdList* cpos = ptr->tidl->posInTrace;
+    while (cpos->next){
+      cpos = cpos->next;
+    }
+    UNSET(cpos, LAST_IN_TRACE);
     ptr = ptr->next;
   }
   destroyTraceVessel(&tmp);

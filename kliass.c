@@ -16,6 +16,7 @@ int main(int argc,char** argv){
     return 1;
   }
   kmerHolder* kh = readIn(argv[1]);
+
   seqCollection* sc = allTraces(&kh);
   printSeqCollection(&kh, &sc);
   //summarize(kh->ms); exit(0);
