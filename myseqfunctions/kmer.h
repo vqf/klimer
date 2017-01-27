@@ -543,16 +543,23 @@ kmerConnector* nextKc(memstruct** msp, kmerConnector** kcp, LISTTYPE i, LISTTYPE
   kmerConnector* kc = *kcp;
   D_(2, "From %.8x\n", (unsigned int) kc->uid);
   kmerConnector* result = NULL;
-  tIdList* t = isInTIdList(&kc->idflags, i);
+  tIdList* t = _getTrace(&kc->idflags, i, pos);
   if (t){
     result = getKcWithTId(msp, kc->dest, i, pos + 1);
+  }
+  else{
+    D_(0, "Error, you should not ask for nextKc here\n");
+    D_(0, "Asked for tid %lu from ", (LUI) i);
+    E_(0, printTIdList(kc->idflags));
+    D_(0, "\n");
   }
   return result;
 }
 
 
-bool isLastInTrace(memstruct* ms, kmerConnector* kc, LISTTYPE i, LISTTYPE pos){
-  tIdList* myl = _getTrace(&kc->idflags, i, pos);
+bool isLastInTrace(tIdList** tp, LISTTYPE pos){
+  tIdList* t = *tp;
+  tIdList* myl = isInTIdList(&t->posInTrace, pos);
   if (IS(myl, LAST_IN_TRACE)){
     return true;
   }

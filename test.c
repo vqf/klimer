@@ -26,7 +26,7 @@ int main(int argc,char** argv){
   }
   resetTrace(&km);
 
-  /*dtext = "AAAAAAAAAAAACGTACGTACGAGCTGTACGTACGTTCGTACGAGCGCGTACGTAGAAAAAAAAAAAAACCCGTACG";
+  dtext = "AAAAAAAAAAAACGTACGTACGAGCTGTACGTACGTTCGTACGAGCGCGTACGTAGAAAAAAAAAAAAACCCGTACG";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
@@ -38,13 +38,13 @@ int main(int argc,char** argv){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
-  dtext = "CGCGTACGTAGAAAAAAAAAAAAACCCGTACGTACGTTCGTACGAGCTACGTTCGTAAAA";
+  dtext = "CGCGTACGTAGAAAAAAAAAAAAAAAACGTACGTACGAGCTGTACGTACGTTCGTACGAGCGCGTACGTAGAAAAAAAAAAAA";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
-  */
+
   summarize(km->ms);
   writeOut(&km, "/users/vqf/desktop/tmp.txt");
   //printf("Written\n");
