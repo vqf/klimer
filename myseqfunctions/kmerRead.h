@@ -137,7 +137,7 @@ char* getTraceSeq(kmerHolder** khp, kcLL** kcp){
   uint32_t cl = (uint32_t) (kh->kmerSize + l + 1);
   char* result = (char*) calloc((size_t) cl, sizeof(char));
   pos2seq(&kh->ms, kcll->kc->dest, result);
-  uint32_t j = (uint32_t) (kh->kmerSize);
+  uint32_t j = (uint32_t) ((kh->kmerSize) - 1);
   while (kcll){
     result[j] = getLastBase(khp, kcll->kc->dest);
     j++;
@@ -156,12 +156,9 @@ seqCollection* recursivelyFollowTrace(kmerHolder** khp, kmerConnector** kcp, LIS
   posInTrace++;
   if (!kc) return result;
   tIdList* thisTrace = _getTrace(&kc->idflags, tid, posInTrace);
-  bool finishIt = isLastInTrace(&thisTrace, posInTrace);
-  while (kc && thisTrace && !finishIt){
+  while (kc && thisTrace){
     kcpush(&result->trace, &kc, tid, posInTrace);
-    if (!finishIt){
-      finishIt = isLastInTrace(&thisTrace, posInTrace);
-    }
+
     kc = nextKc(&ms, &kc, tid, posInTrace);
     posInTrace++;
     if (kc) thisTrace = _getTrace(&kc->idflags, tid, posInTrace);

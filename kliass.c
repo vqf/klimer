@@ -19,8 +19,14 @@ int main(int argc,char** argv){
 
   //seqCollection* sc = allTraces(&kh);
   kcLL* s1 = nextTrace(&kh);
-  char* yo = getTraceSeq(&kh, &s1);
-  printf("%s\n", yo);
+  while (s1){
+    char* yo = getTraceSeq(&kh, &s1);
+    printf("%s\n", yo);
+    free(yo);
+    s1 = nextTrace(&kh);
+  }
+  resetKcLL(&s1);
+  destroyKh(&kh);
   //summarize(kh->ms); exit(0);
   /*kcLL* ft = nextTrace(&kh);
   uint32_t i = 0;

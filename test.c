@@ -12,32 +12,36 @@
 
 int main(int argc,char** argv){
   srand((unsigned) time(NULL));
-  kmerHolder *km = initKmer(11, 4);
-  char* dtext = "GTAAAAAAAAAAAAAAACGTACGTACGAGCT";
+  char* fileout = argv[1];
+  if (argc < 2){
+    fileout = "/users/vqf/desktop/tmp.txt";
+  }
+  kmerHolder *km = initKmer(1, 4);
+  char* dtext = "GTAAAAAAAAAAAAAAACGTAGCGTACGAGCT";
   uint8_t l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
-  dtext = "AAGTAAAAAAAAAAAAAAACGTACGTAC";
+/*  dtext = "CAGTAAAAAAAAAAAAAAACGTACGTAC";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
-
-  dtext = "AAAAAAAAAAAACGTACGTACGAGCTGTACGTACGTTCGTACGAGCGCGTACGTAGAAAAAAAAAAAAACCCGTACG";
+*/
+  dtext = "AAAAAAAAAAAACGTACGTACGAGCTGTACGTACGTTCGTACGAGCGCGTACGTAGAAAAAAAAAAAAACCCGTAC";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
-  dtext = "CCGTACGTACGTTCGTACGAGCTACGTTCGTAAAACGTACGTACGCGTACGTACGTTCGAAAAAAAAAAAAAGACGAGCT";
+/*  dtext = "CCGTACGTACGTTCGTACGAGCTACGTTCGTAAAACGTACGTACGCGTACGTACGTTCGAAAAAAAAAAAAAGACGAGCT";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
   }
-  resetTrace(&km);
+  resetTrace(&km);*/
   dtext = "CGCGTACGTAGAAAAAAAAAAAAAAAACGTACGTACGAGCTGTACGTACGTTCGTACGAGCGCGTACGTAGAAAAAAAAAAAA";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
@@ -46,7 +50,7 @@ int main(int argc,char** argv){
   resetTrace(&km);
 
   summarize(km->ms);
-  writeOut(&km, "/users/vqf/desktop/tmp.txt");
+  writeOut(&km, fileout);
   //printf("Written\n");
   //kmerHolder* khr = readIn("/users/vqf/desktop/tmp.txt");
   //printf("Read\n");

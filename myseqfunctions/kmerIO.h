@@ -7,7 +7,6 @@
 #define MAGIC 0xDABAFA00
 #include "kmer.h"
 
-
 //#include "debugFileIO.h"
 
 
@@ -34,7 +33,7 @@ uint32_t* rebuildCirc(uint32_t l, uint32_t* arr){
 uint8_t writeOut(kmerHolder** khp, char* fname){
   kmerHolder* kh = *khp;
   memstruct* ms = kh->ms;
-  FILE* fout = fopen(fname, "w");
+  FILE* fout = fopen(fname, "wb");
   if (fout){
     D_(2, "Writing header\n")
     uint32_t magic = MAGIC;
@@ -64,7 +63,7 @@ uint8_t writeOut(kmerHolder** khp, char* fname){
             fwrite(&ll, sizeof(uint32_t), 1, fout);
             tIdList* loops = ids->posInTrace;
             while (loops){
-              fwrite(&loops->trace.n, sizeof(uint32_t), 1, fout);
+              fwrite(&loops->trace.n, sizeof(LISTTYPE), 1, fout);
               fwrite(&loops->trace.flag, sizeof(uint8_t), 1, fout);
               fwrite(&loops->trace.nReads, sizeof(uint32_t), 1, fout);
               loops = loops->next;
@@ -87,7 +86,7 @@ uint8_t writeOut(kmerHolder** khp, char* fname){
 }
 
 kmerHolder* readIn(char* file){
-  FILE* fin = fopen(file, "r");
+  FILE* fin = fopen(file, "rb");
   if (fin){
     uint32_t magic;
     uint8_t  kmerLength;
@@ -146,7 +145,7 @@ kmerHolder* readIn(char* file){
               }
               else{
                 thisId->posInTrace = thisPos;
-                posPtr = thisPos;
+                posPtr = thisId->posInTrace;
               }
             }
           }

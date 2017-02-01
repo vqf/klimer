@@ -18,7 +18,7 @@ typedef enum { false, true } bool;
 #define D_(a, ...) if (DEBUG >= a) printf(__VA_ARGS__);
 #define E_(a, b) if (DEBUG >= a){ printf("At %d: ", __LINE__); b; }
 #define P_(a) printf("%s at %d: %p\n", #a, __LINE__, a);
-
+#define X_ printf("\n=====\nExit at %d\n====\n", __LINE__); exit(0);
 
 
 // Trace flags
@@ -212,6 +212,18 @@ tIdList* addPosInTrace(tIdList** ap, LISTTYPE pos){
   return r;
 }
 
+void nextPos(tIdList** tp){
+  tIdList* t = *tp;
+  while (t){
+    tIdList* cPos = t->posInTrace;
+    while (cPos){
+      cPos->trace.n++;
+      cPos = cPos->next;
+    }
+    t = t->next;
+  }
+}
+
 
 tIdList* copyTIdList(tIdList** tocopyp){
   tIdList* tocopy = *tocopyp;
@@ -221,10 +233,10 @@ tIdList* copyTIdList(tIdList** tocopyp){
   }
   tIdList* tmp = tocopy;
   while(tmp){
-    insertInTIdList(&result, tmp->trace.n);
+    tIdList* addtome = insertInTIdList(&result, tmp->trace.n);
     tIdList* pos = tmp->posInTrace;
     while (pos){
-      insertInTIdList(&result->posInTrace, pos->trace.n);
+      insertInTIdList(&addtome->posInTrace, pos->trace.n);
       pos = pos->next;
     }
     tmp = tmp->next;
@@ -383,12 +395,20 @@ void destroyTraceVessel(traceVessel** tvp){
 }
 
 
-tIdList* traceLast(tIdList* t){
+tIdList* traceLast(tIdList** tp){
+  tIdList* t = *tp;
   tIdList* result = NULL;
   tIdList* tmp = t;
   while (tmp){
     if (IS(tmp, LAST_IN_TRACE)){
-      insertInTIdList(&result, tmp->trace.n);
+      tIdList* lPos = tmp->posInTrace;
+      LISTTYPE mpos = 0;
+      while (lPos && lPos->next){
+        lPos = lPos->next;
+      }
+      mpos = lPos->trace.n;
+      tIdList* ptr = insertInTIdList(&result, tmp->trace.n);
+      insertInTIdList(&ptr->posInTrace, mpos);
     }
     tmp = tmp->next;
   }
@@ -462,7 +482,24 @@ tIdList* _getTrace(tIdList** tp, LISTTYPE i, LISTTYPE pos){
     if (tmp->trace.n == i){
       tIdList* intmp = tmp->posInTrace;
       while (intmp){
-        if (intmp->trace.n == pos){
+        if (!pos || intmp->trace.n == pos){
+          return tmp;
+        }
+        intmp = intmp->next;
+      }
+    }
+    tmp = tmp->next;
+  }
+  return NULL;
+}
+
+tIdList* _getTraceNotInUse(tIdList** tp, LISTTYPE i, LISTTYPE pos){
+  tIdList* tmp = *tp;
+  while (tmp){
+    if (tmp->trace.n == i && !IS(tmp, IN_USE)){
+      tIdList* intmp = tmp->posInTrace;
+      while (intmp){
+        if (intmp->trace.n == pos && !IS(intmp, IN_USE)){
           return tmp;
         }
         intmp = intmp->next;
