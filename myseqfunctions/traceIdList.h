@@ -480,6 +480,7 @@ tIdList* _getTrace(tIdList** tp, LISTTYPE i, LISTTYPE pos){
   tIdList* tmp = *tp;
   while (tmp){
     if (tmp->trace.n == i){
+      if (!pos) return tmp;
       tIdList* intmp = tmp->posInTrace;
       while (intmp){
         if (!pos || intmp->trace.n == pos){
@@ -569,31 +570,31 @@ bool isLast(tIdList** t, tIdList* which){
   return result;
 }
 
-void setAsFirst (tIdList** t, tIdList* which){
-  if (!which) return;
-  traceVessel* tmp = _getTraces(t, which);
-  traceVessel* ptr = tmp;
-  while (ptr->tidl){
-    SET(ptr->tidl, FIRST_IN_TRACE);
-    SET(ptr->tidl->posInTrace, FIRST_IN_TRACE); // Should be position 1
-    ptr = ptr->next;
-  }
-  destroyTraceVessel(&tmp);
-}
-void setAsLast (tIdList** t, tIdList* which){
-  if (!which) return;
-  traceVessel* tmp = _getTraces(t, which);
-  traceVessel* ptr = tmp;
-  while (ptr->tidl){
-    SET(ptr->tidl, LAST_IN_TRACE);
-    tIdList* pos = ptr->tidl->posInTrace;
-    while (pos->next){
-      pos = pos->next;
+void setAsFirst (tIdList** t, LISTTYPE id, LISTTYPE pos){
+  tIdList* tmp = _getTrace(t, id, pos);
+  if (tmp){
+    SET(tmp, FIRST_IN_TRACE);
+    tIdList* tmpos = _getTrace(&tmp->posInTrace, pos, 0);
+    if (!tmpos){
+      printTIdList(tmp->posInTrace);X_;
     }
-    SET(pos, LAST_IN_TRACE);
-    ptr = ptr->next;
+    SET(tmpos, FIRST_IN_TRACE);
   }
-  destroyTraceVessel(&tmp);
+  else{
+    D_(0, "Cannot find first in trace\n");
+  }
+}
+
+void setAsLast (tIdList** t, LISTTYPE id, LISTTYPE pos){
+  tIdList* tmp = _getTrace(t, id, pos);
+  if (tmp){
+    SET(tmp, LAST_IN_TRACE);
+    tIdList* tmpos = _getTrace(&tmp->posInTrace, pos, 0);
+    SET(tmpos, LAST_IN_TRACE);
+  }
+  else{
+    D_(0, "Cannot find last in trace\n");
+  }
 }
 
 void setAsUsed(tIdList** t, tIdList* which){
@@ -628,62 +629,145 @@ void printTraceLL(traceLL* toprint){
   printf("==\n");
 }
 
-tIdList* circTraces(tIdList** t, bool extending){
-  tIdList* result = NULL;
-  tIdList* tmp = *t;
-  while (tmp){
-    if ((!IS(tmp, CIRCULAR) || extending) && IS(tmp, IN_USE)){
-      insertInTIdList(&result, tmp->trace.n);
-    }
-    tmp = tmp->next;
+
+void unsetAsFirst (tIdList** t, LISTTYPE id, LISTTYPE pos){
+  tIdList* tmp = _getTrace(t, id, pos);
+  if (tmp){
+    UNSET(tmp, FIRST_IN_TRACE);
+    tIdList* tmpos = _getTrace(&tmp->posInTrace, pos, 0);
+    UNSET(tmpos, FIRST_IN_TRACE);
   }
+  else{
+    D_(0, "Cannot find last in trace\n");
+  }
+}
+
+void unsetAsLast (tIdList** t, LISTTYPE id, LISTTYPE pos){
+  tIdList* tmp = _getTrace(t, id, pos);
+  if (tmp){
+    UNSET(tmp, LAST_IN_TRACE);
+    tIdList* tmpos = _getTrace(&tmp->posInTrace, pos, 0);
+    UNSET(tmpos, LAST_IN_TRACE);
+  }
+  else{
+    D_(0, "Cannot find last in trace\n");
+  }
+}
+
+/* TraceSet */
+
+typedef struct tSet{
+  LISTTYPE traceId;
+  LISTTYPE startingPos; // Where each trace starts
+  LISTTYPE currentPos;
+  LISTTYPE upShift; // If type is 1 or 3, how many kcs until we reach the first existing one
+  LISTTYPE dnShift; // If type is 2 or 3, how many kcs until we reach the last existing one
+  uint8_t type;
+  struct tSet* prev;
+  struct tSet* next;
+  // Type - relationship to trace
+  //  0 inside, not extending
+  //  1 extendUp
+  //  2 extendDn)
+  //  3 extendUp + extendDn
+} tSet;
+
+tSet* newTSet(LISTTYPE traceId, LISTTYPE pos){
+  tSet* result = (tSet*) calloc(1, sizeof(tSet));
+  result->traceId = traceId;
+  result->startingPos = pos;
+  result->currentPos  = pos;
+  result->upShift = 0;
+  result->dnShift = 0;
+  result->next = NULL;
+  result->prev = NULL;
   return result;
 }
 
-
-
-void unsetCircular(tIdList** t, tIdList* which){
-  if (!which) return;
-  traceVessel* tmp = _getTraces(t, which);
-  traceVessel* ptr = tmp;
-  while (ptr->tidl){
-    if (IS(ptr->tidl, CIRCULAR)) UNSET(ptr->tidl, CIRCULAR);
-    ptr = ptr->next;
+void destroyTSet(tSet** todelp){
+  tSet* todel = *todelp;
+  while (todel){
+    tSet* nxt = todel->next;
+    free(todel);
+    todel = nxt;
   }
-  destroyTraceVessel(&tmp);
+  *todelp = NULL;
 }
 
-void unsetAsFirst(tIdList** t, tIdList* which){
-  if (!which) return;
-  traceVessel* tmp = _getTraces(t, which);
-  traceVessel* ptr = tmp;
-  while (ptr->tidl){
-    if (IS(ptr->tidl, FIRST_IN_TRACE)){
-      UNSET(ptr->tidl, FIRST_IN_TRACE);
-      D_(1, "Unsetting first in %lu\n", (LUI) ptr->tidl->trace.n);
-      UNSET(ptr->tidl->posInTrace, FIRST_IN_TRACE);
-    }
-    ptr = ptr->next;
-  }
-  destroyTraceVessel(&tmp);
+void unshiftTSet(tSet** origp, LISTTYPE traceId, LISTTYPE pos){
+  tSet* orig = *origp;
+  tSet* toadd = newTSet(traceId, pos);
+  toadd->next = orig;
+  if (orig) orig->prev = toadd;
+  *origp = toadd;
 }
-void unsetAsLast(tIdList** t, tIdList* which){
-  if (!which) return;
-  traceVessel* tmp = _getTraces(t, which);
-  traceVessel* ptr = tmp;
-  while (ptr->tidl){
-    if (IS(ptr->tidl, LAST_IN_TRACE)){
-      UNSET(ptr->tidl, LAST_IN_TRACE);
-      D_(1, "Unsetting last in %lu\n", (LUI) ptr->tidl->trace.n);
-    }
-    tIdList* cpos = ptr->tidl->posInTrace;
-    while (cpos->next){
-      cpos = cpos->next;
-    }
-    UNSET(cpos, LAST_IN_TRACE);
-    ptr = ptr->next;
+
+void exciseTSet (tSet** headp, tSet** todelp){
+  tSet* todel = *todelp;
+  if (!todel) return;
+  tSet* p = todel->prev;
+  tSet* n = todel->next;
+  if (!p && !n){
+    destroyTSet(headp);
+    return;
   }
-  destroyTraceVessel(&tmp);
+  if (p){
+    p->next = n;
+  }
+  else{ // shift
+    *headp = todel->next;
+    todel->next = NULL;
+    destroyTSet(&todel);
+    (*headp)->prev = NULL;
+    return;
+  }
+  if (n){
+    n->prev = p;
+  }
+  else{  //pop
+    if (p){
+      p->next = NULL;
+      destroyTSet(&todel);
+    }
+    return;
+  }
+  todel->next = NULL;
+  destroyTSet(&todel);
+  todelp = &n;
+}
+
+bool _isLower(tSet** one, tSet** two){
+  if ((*one)->traceId > (*two)->traceId){
+    return false;
+  }
+  else if ((*one)->traceId == (*two)->traceId){
+    if ((*one)->startingPos > (*two)->startingPos){
+      return false;
+    }
+  }
+  return true;
+}
+
+tSet* copyTSet(tSet* t){
+  tSet* result = newTSet(t->traceId, t->startingPos);
+  result->currentPos = t->currentPos;
+  result->type = t->type;
+  result->upShift = t->upShift;
+  result->dnShift = t->dnShift;
+  return result;
+}
+
+void printTSet(tSet* t){
+  if (!t) return;
+  printf("\n=====\n");
+  while (t){
+    printf("[%lu (%u), {%lu, %lu}]\n", (LUI) t->traceId,
+                                       t->type,
+                                       (LUI) t->startingPos,
+                                       (LUI) t->currentPos);
+    t = t->next;
+  }
+  printf("=====\n");
 }
 
 #endif // SNUMBERLIST_H_INCLUDED
