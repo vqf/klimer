@@ -82,6 +82,11 @@ kcLL* followTrace(kmerHolder** khp, uint32_t pos, LISTTYPE tid, LISTTYPE posInTr
   kcLL* result = NULL;
   memstruct* ms = (*khp)->ms;
   kmerConnector* kc = getKcWithTId(&ms, pos, tid, posInTrace);
+  if (!kc){
+    D_(0, "Error at kc %lu, id %lu, pos %lu\n", (LUI) pos, (LUI) tid, (LUI) posInTrace);
+    SEQ(&ms, ms->kmerArray[pos]);
+    X_;
+  }
   tIdList* thisTrace = _getTrace(&kc->idflags, tid, posInTrace);
   while (kc && !isLastInTrace(&thisTrace, posInTrace)){
     E_(1,
@@ -92,9 +97,11 @@ kcLL* followTrace(kmerHolder** khp, uint32_t pos, LISTTYPE tid, LISTTYPE posInTr
       free(seq2);
       //getc(stdin)
     );
-
     kcpush(&result, &kc, tid, posInTrace);
     kc = nextKc(&ms, &kc, tid, posInTrace);
+    if (!kc){
+      D_(0, "Trace %lu interrupted\n", (LUI) tid);
+    }
     posInTrace++;
     if (kc) thisTrace = _getTrace(&kc->idflags, tid, posInTrace);
   }
@@ -112,12 +119,15 @@ kcLL* nextTrace(kmerHolder** khp){
     while (kc && kc->n > 0){
       tIdList* l = kc->idflags;
       while (l){
-        if (!IS(l, IN_USE) && IS(l, FIRST_IN_TRACE)){
-          SET(l, IN_USE);
-          D_(2, "Found starting trace at %lu\n", (LUI) i);
-          ms->status->current = i;
-          result = followTrace(khp, i, l->trace.n, 1);
-          return result;
+        if (IS(l, FIRST_IN_TRACE)){
+          tIdList* start = isInTIdList(&l->posInTrace, 1);
+          if (!IS(start, IN_USE)){
+            SET(start, IN_USE);
+            D_(2, "Found starting trace at %lu\n", (LUI) i);
+            ms->status->current = i;
+            result = followTrace(khp, i, l->trace.n, 1);
+            return result;
+          }
         }
         l = l->next;
       }

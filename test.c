@@ -29,8 +29,7 @@ int main(int argc,char** argv){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
-/*
-  dtext = "AAAAAAAAAGTACGTAGAAAAAAAAAAAAACCCGTACGTAAAAAA";
+  dtext = "AAAAAAAAAAAAAAGTACGTAGAAAAAAAAAAAAACCCGTACGTAAAAAA";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
@@ -42,13 +41,12 @@ int main(int argc,char** argv){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
-  dtext = "CGCGTACGTAGAAAAAAAAAAAAAAAACGTACGTACGAGCTGTACGTACGTTCGTACGAGCGCGTACGTAGAAAAAAAAAAAA";
+  dtext = "GACGAGCTAACGCGTACGTAGAAAAAAAAAAAAAAAACGTACGTACGAGCTGTACGTACGTTCGTACGAGCGCGTACGTAGAAAAAAAAAAAA";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
-*/
   summarize(km->ms);
   writeOut(&km, fileout);
   //printf("Written\n");

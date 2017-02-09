@@ -2,7 +2,7 @@
 #define KMER_H_INCLUDED
 
 #ifndef DEBUG
-#define DEBUG 2
+#define DEBUG 0
 #endif /* DEBUG */
 
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
@@ -47,6 +47,7 @@ uint32_t _UID = 0;
 #define ISKC(a, b) ((a)->flags & b)
 #define GETUID _UID; _UID++;
 
+//#define addPosInTrace(a, b) printf("Line %d, cpos %lu\n", __LINE__, (LUI) cposInTrace); addPosInTrace(a, b)
 
 
 // FLAGS
@@ -596,16 +597,20 @@ void cleanTraceStatus(kmerHolder** khp){
 
 
 void shiftPosInTrace(memstruct** msp, kmerConnector** kcp, tIdList** tp, LISTTYPE n){
+  // returns number of kcs shifted
   memstruct* ms = *msp;
   tIdList* t = *tp;
-  while (t){
+  D_(2, "Shifting trace %lu by %lu\n", (LUI) t->trace.n, (LUI) n);
+  if (t){
     LISTTYPE i = t->trace.n;
     kmerConnector* kc = *kcp;
-    tIdList* tmp = isInTIdList(&kc->idflags, i);
+    tIdList* tmp = isInTIdListNotInUse(&kc->idflags, i);
     LISTTYPE old = tmp->posInTrace->trace.n;
+    bool last = false;
     while (kc){
       if (tmp){
-        tIdList* ps = isInTIdList(&tmp->posInTrace, old);
+        D_(2, "Trace %lu, pos %lu to %lu\n", (LUI) tmp->trace.n, (LUI) old, (LUI) (old+n));
+        tIdList* ps = isInTIdListNotInUse(&tmp->posInTrace, old);
         if (!ps){
           D_(0, "No pos %lu to shift by %lu\n", (LUI) old, (LUI) n);
           printf("kc idlist: "); printTIdList(kc->idflags);
@@ -618,10 +623,15 @@ void shiftPosInTrace(memstruct** msp, kmerConnector** kcp, tIdList** tp, LISTTYP
         ps->trace.n += n;
         old++;
         kc = getKcWithTIdNotInUse(msp, kc->dest, i, old);
-        if (kc) tmp = isInTIdList(&kc->idflags, i);
+        if (kc){
+          tmp = isInTIdListNotInUse(&kc->idflags, i);
+          last = isLastInTrace(&tmp, old);
+        }
+        else if (!last){
+          D_(0, "Upshift interrupted\n"); X_
+        }
       }
     }
-    t = t->next;
   }
   // Clean inUse
   traceLL* toClean = ms->status->inUse;
@@ -643,7 +653,24 @@ void resetTrace(kmerHolder** kp){
   kcLL** tmpp = &ms->status->trace;
   kcLL* tmp = *tmpp;
   bool newTrace = true;
-  if (ms->status->traceSet) newTrace = false;
+  if (ms->status->traceSet){
+    newTrace = false;
+    // If several tSets refer to the same trace, only one
+    // should be incorporated. The rest will be added as
+    // new traces (conflict)
+    tIdList* used = NULL;
+    tSet* tmpTSet = ms->status->traceSet;
+    while (tmpTSet){
+      if (isInTIdListNotInUse(&used, tmpTSet->traceId)){
+        tmpTSet->conflict = true;
+      }
+      else{
+        insertInTIdList(&used, tmpTSet->traceId);
+      }
+      tmpTSet = tmpTSet->next;
+    }
+    destroyTIdList(&used);
+  }
   LISTTYPE cposInTrace = 1;  // Used for newTrace
   if (newTrace){
     nextId(&ms);
@@ -662,23 +689,95 @@ void resetTrace(kmerHolder** kp){
   else{
     tSet* eachTSet = ms->status->traceSet;
     E_(2, printTSet(ms->status->traceSet));
-    // TODO Pre-process: If there are several shifts from extending up, they must become
-    // compatible for one shift
     while (eachTSet){
-      if (eachTSet->type == 1 || eachTSet->type == 3){ // Extending up
+      cposInTrace = 1;
+      if (!eachTSet->conflict){
+        tmp = ms->status->trace;
         LISTTYPE cId = eachTSet->traceId;
-        while (cposInTrace < eachTSet->upShift){
+        if (eachTSet->type == 0){
+          LISTTYPE nId = eachTSet->traceId;
+          cposInTrace = eachTSet->startingPos;
+          D_(1, "Inside trace (%lu)\n", (LUI) nId);
+          while (tmp){
+            tIdList* tl = addTrace(&tmp->kc->idflags, nId);
+            addPosInTrace(&tl, cposInTrace);
+            cposInTrace++;
+            tmp = tmp->next;
+          }
+        }
+        else if (eachTSet->type == 1 || eachTSet->type == 3){ // Extending up
+          LISTTYPE counter = 1;
+          while (counter < eachTSet->upShift){
+            counter++;
+            tmp = tmp->next;
+          }
+          tIdList* fst = _getTrace(&tmp->kc->idflags, cId, 1);
+          if (!fst){
+            D_(0, "Warning: There should be a starting trace here, but I cannot find it\n");
+          }
+          if (IS(fst, FIRST_IN_TRACE)){
+            unsetAsFirst(&fst, cId, 1);
+            shiftPosInTrace(&ms, &tmp->kc, &fst, eachTSet->upShift - 1);
+          }
+          else{
+            D_(0, "Warning, there should be a first_in_trace\n");
+          }
+          tmp = ms->status->trace;
+          while (cposInTrace < eachTSet->upShift){
+            tIdList* tl = addTrace(&tmp->kc->idflags, cId);
+            addPosInTrace(&tl, cposInTrace);
+            cposInTrace++;
+            tmp = tmp->next;
+          }
+          setAsFirst(&ms->status->trace->kc->idflags, cId, 1);
+          if (eachTSet->type == 3){
+            while(tmp){
+              tIdList* tl = addTrace(&tmp->kc->idflags, cId);
+              addPosInTrace(&tl, cposInTrace);
+              cposInTrace++;
+              tmp = tmp->next;
+            }
+            setAsLast(&ms->status->trace->last->kc->idflags, cId, cposInTrace - 1);
+          }
+        }
+        else if (eachTSet->type == 2){
+          cposInTrace = eachTSet->startingPos;
+          LISTTYPE posInRead = 1;
+          while(posInRead < eachTSet->dnShift){
+            tIdList* tl = addTrace(&tmp->kc->idflags, cId);
+            addPosInTrace(&tl, cposInTrace);
+            cposInTrace++;
+            posInRead++;
+            tmp = tmp->next;
+          }
+          tIdList* lst = _getTrace(&tmp->kc->idflags, cId, cposInTrace );
+          if (!lst){
+            D_(0, "Cannot find previous last\n"); X_;
+          }
+          if (IS(lst, LAST_IN_TRACE)){
+            unsetAsLast(&lst, cId, cposInTrace);
+          }
+          else{
+            D_(0, "Warning, this one should be last\n");
+          }
+          while(tmp){
+            tIdList* tl = addTrace(&tmp->kc->idflags, cId);
+            addPosInTrace(&tl, cposInTrace);
+            cposInTrace++;
+            tmp = tmp->next;
+          }
+          setAsLast(&ms->status->trace->last->kc->idflags, cId, cposInTrace - 1);
+        }
+        else{
+          D_(0, "At this point, type must be 0, 1, 2 or 3\n");
+          X_;
+        }
+        // finish it
+        while(tmp){
           tIdList* tl = addTrace(&tmp->kc->idflags, cId);
           addPosInTrace(&tl, cposInTrace);
           cposInTrace++;
           tmp = tmp->next;
-        }
-        tIdList* fst = _getTrace(&tmp->kc->idflags, cId, 1);
-        if (!fst){
-          D_(0, "Warning: There should be a starting trace here, but I cannot find it\n");
-        }
-        if (IS(fst, FIRST_IN_TRACE)){
-          shiftPosInTrace(&ms, &tmp->kc, &fst, eachTSet->upShift - 1);
         }
       }
       eachTSet = eachTSet->next;
@@ -759,38 +858,40 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
   if (eachTSet) D_(2, "-Existing trace\n======\n");
   if (kc->idflags) lst = traceLast(&kc->idflags);
   while (eachTSet){
-    D_(2, "tSet [%lu, %lu]\n", (LUI) eachTSet->traceId, (LUI) eachTSet->currentPos);
     bool getNext = true;
-    if (eachTSet->type != 2){
-      tIdList* thisTrace = NULL;
-      if (kc->idflags) thisTrace = _getTrace(&kc->idflags, eachTSet->traceId, eachTSet->currentPos+1);
-      if (thisTrace){
-        if (lst){
-          D_(2, "Compatible\n");
-          tIdList* islst = _getTrace(&lst, eachTSet->traceId, eachTSet->currentPos);
-          if (islst){
-            eachTSet->type += 2;
-            eachTSet->dnShift = ms->status->posInRead;
-            D_(2, "Ends trace at pos %lu\n", (LUI) ms->status->posInRead);
+    if (!eachTSet->fixed){
+      D_(2, "tSet [%lu, %lu]\n", (LUI) eachTSet->traceId, (LUI) eachTSet->currentPos);
+      if (eachTSet->type != 2){
+        tIdList* thisTrace = NULL;
+        if (kc->idflags) thisTrace = _getTrace(&kc->idflags, eachTSet->traceId, eachTSet->currentPos+1);
+        if (thisTrace){
+          if (lst){
+            D_(2, "Compatible\n");
+            tIdList* islst = _getTrace(&lst, eachTSet->traceId, eachTSet->currentPos+1);
+            if (islst){
+              eachTSet->type += 2;
+              eachTSet->dnShift = ms->status->posInRead;
+              eachTSet->fixed = true;
+              D_(2, "Ends trace at pos %lu\n", (LUI) ms->status->posInRead);
+            }
           }
+          eachTSet->currentPos++;
         }
-        eachTSet->currentPos++;
-      }
-      else{
-        D_(2, "Incompatible\n");
-        tSet* delme = eachTSet;
-        eachTSet = eachTSet->next;
-        exciseTSet(&ms->status->traceSet, &delme);
-        printTSet(ms->status->traceSet);
-        getNext = false;
+        else{
+          D_(2, "Incompatible\n");
+          tSet* delme = eachTSet;
+          eachTSet = eachTSet->next;
+          exciseTSet(&ms->status->traceSet, &delme);
+          getNext = false;
+        }
       }
     }
     if (getNext) eachTSet = eachTSet->next;
   }
+  destroyTIdList(&lst);
   // Add traces if necessary
   if (kc->idflags){
     tIdList* eachTrace = kc->idflags;
-    tIdList* fst = traceFirst(&kc->idflags);
     while (eachTrace){
       if (ms->status->isFirst){
         D_(2, "Inside, not extending");
@@ -802,18 +903,14 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
           dPos = dPos->next;
         }
       }
-      else if (fst){
-        while (fst){
-          D_(2, "Might extend up trace %lu\n", (LUI) fst->trace.n);
-          unshiftTSet(&ms->status->traceSet, fst->trace.n, 1);
-          ms->status->traceSet->type = 1;
-          ms->status->traceSet->upShift = ms->status->posInRead;
-          fst = fst->next;
-        }
+      else if (IS(eachTrace, FIRST_IN_TRACE)){
+        D_(2, "Might extend up trace %lu\n", (LUI) eachTrace->trace.n);
+        unshiftTSet(&ms->status->traceSet, eachTrace->trace.n, 1);
+        ms->status->traceSet->type = 1;
+        ms->status->traceSet->upShift = ms->status->posInRead;
       }
       eachTrace = eachTrace->next;
     }
-    destroyTIdList(&fst);
   }
   D_(2, "\n======\n");
   if (ms->status->isFirst) ms->status->isFirst = false;

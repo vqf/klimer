@@ -17,6 +17,7 @@ int main(int argc,char** argv){
   }
   kmerHolder* kh = readIn(argv[1]);
 
+
   //seqCollection* sc = allTraces(&kh);
   kcLL* s1 = nextTrace(&kh);
   while (s1){

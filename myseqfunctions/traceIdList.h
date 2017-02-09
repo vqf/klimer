@@ -314,6 +314,18 @@ tIdList* isInTIdList(tIdList** arrp, LISTTYPE val){
   tIdList *arr = *arrp;
   tIdList* result = NULL;
   while (!result && arr){
+    if (arr->trace.n == val){
+      result = arr;
+    }
+    arr = arr->next;
+  }
+  return result;
+}
+
+tIdList* isInTIdListNotInUse(tIdList** arrp, LISTTYPE val){
+  tIdList *arr = *arrp;
+  tIdList* result = NULL;
+  while (!result && arr){
     if (!IS(arr, IN_USE) && arr->trace.n == val){
       result = arr;
     }
@@ -463,6 +475,7 @@ tIdList* traceFirst(tIdList** tp){
     }
     tmp = tmp->next;
   }
+  E_(2, printTIdList(result); printf("\n"););
   return result;
 }
 
@@ -581,7 +594,7 @@ void setAsFirst (tIdList** t, LISTTYPE id, LISTTYPE pos){
     SET(tmpos, FIRST_IN_TRACE);
   }
   else{
-    D_(0, "Cannot find first in trace\n");
+    D_(0, "Cannot find first in trace, id %lu, pos %lu\n", (LUI) id, (LUI) pos);
   }
 }
 
@@ -662,6 +675,8 @@ typedef struct tSet{
   LISTTYPE currentPos;
   LISTTYPE upShift; // If type is 1 or 3, how many kcs until we reach the first existing one
   LISTTYPE dnShift; // If type is 2 or 3, how many kcs until we reach the last existing one
+  bool conflict;    // More than one upShift is possible
+  bool fixed;       // Should not be checked anymore (type 2, reached end of trace)
   uint8_t type;
   struct tSet* prev;
   struct tSet* next;
@@ -677,6 +692,8 @@ tSet* newTSet(LISTTYPE traceId, LISTTYPE pos){
   result->traceId = traceId;
   result->startingPos = pos;
   result->currentPos  = pos;
+  result->conflict = false;
+  result->fixed = false;
   result->upShift = 0;
   result->dnShift = 0;
   result->next = NULL;

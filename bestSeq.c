@@ -33,6 +33,7 @@ int main(int argc,char** argv){
   seqCollection* sc = allTraces(&km);
   seqCollection* best = bestSeqCollection(&sc);
   printSeq(&km, &best);
+  destroySeqCollection(&sc);
   destroyKh(&km);
   destroyFastqReader(&fq);
 }
