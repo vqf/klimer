@@ -1,3 +1,10 @@
+#include <sys/types.h>
+#include "mydmacros.h"
+
+#ifndef _LARGEFILE64_SOURCE
+#define _LARGEFILE64_SOURCE
+#endif /* _LARGEFILE64_SOURCE */
+
 #define BSIZE 0xFFFF
 
 char* cname = NULL; // Current chr name
@@ -17,15 +24,16 @@ typedef struct fr{
   bool newchr;
 } fastaReader;
 
-bool readLine(fastaReader*);
+bool _readLine(fastaReader*);
+char _getNextBase(fastaReader*);
 
 void noAction(memstruct* ms, uint32_t a){
   return;
 }
 
-fastaReader* initFastaReader(FILE* fp, uint32_t bSize){
+fastaReader* newFastaReader(FILE* fp, uint32_t bSize){
   if (bSize == 0) bSize = BSIZE;
-  fastaReader* result = malloc(sizeof(fastaReader));
+  fastaReader* result = (fastaReader*) calloc(1, sizeof(fastaReader));
   result->fp = fp;
   result->bufferSize = bSize;
   result->buffer = NULL;
@@ -37,6 +45,14 @@ fastaReader* initFastaReader(FILE* fp, uint32_t bSize){
   return result;
 }
 
+void destroyFastaReader(fastaReader** frp){
+  D_(2, "Destroying fasta reader\n");
+  fastaReader* fr = *frp;
+  if (fr->buffer) free(fr->buffer);
+  if (fr->cname) free(fr->cname);
+  free(fr);
+  frp = NULL;
+}
 
 void printchars(char *seq){
   int i = 0;
@@ -50,7 +66,7 @@ void printchars(char *seq){
 }
 
 
-void getCname(fastaReader* fr){
+void _getCname(fastaReader* fr){
   /*
   Trims the first character and any symbol with chr lower than 0x10
   */
@@ -58,7 +74,7 @@ void getCname(fastaReader* fr){
   ++start;
   int l = strlen(start);
   int i = 0; int j = 0;
-  
+
   char* dest = calloc(l+1, sizeof(char)); //I am trimming the first character
   char b = start[i];
   while (i < l && (
@@ -73,31 +89,36 @@ void getCname(fastaReader* fr){
   }
   if (fr->cname) free(fr->cname);
   fr->cname = dest;
+  D_(2, "New chromosome %s\n", fr->cname);
 }
 
-bool readLine(fastaReader* fr){
+bool _readLine(fastaReader* fr){
+  D_(2, "Reading new file line\n");
   fr->bpos = 0;
   bool result = true;
   if (!fr->buffer && fr->goon){
+    D_(2, "Creating %lu - byte buffer\n", (LUI) fr->bufferSize);
     fr->buffer = (char*) calloc(fr->bufferSize, sizeof(char));
   }
   if (fgets(fr->buffer, fr->bufferSize, fr->fp) == NULL){ //Finished file
     free(fr->buffer);
     fr->buffer = NULL;
     fr->goon = false;
+    fr->newchr = false;
     fr->gpos = 0;
     result = false;
   }
   else{
     char fst = fr->buffer[fr->bpos];
-    if (DEBUG) printf("%s, pos %d\n", fr->buffer, fr->bpos);
+    D_(2, "%c, pos %d\n", fr->buffer, fr->bpos);
     if (fst == 0x3e){ //>
       //if (fr->cname) free(fr->cname);
-      getCname(fr);
-      if (DEBUG) fprintf(stderr, "Chr %s at %li\n", fr->cname, (long int) ftello (fr->fp));
+      _getCname(fr);
+      D_(2, "Chr %s at %li\n", fr->cname, (LUI) ftell (fr->fp));
       fr->newchr = true;
-      fr->cchrpos = ftello(fr->fp);
-      readLine(fr);
+      fr->cchrpos = ftell(fr->fp);
+      //fr->goon = false;
+      _readLine(fr);
     }
   }
   return result;
@@ -105,28 +126,32 @@ bool readLine(fastaReader* fr){
 
 
 char _getNextBase(fastaReader* fr){
-  char result = 0x00;
+  char result = '\0';
   if (fr->goon){
     if (!fr->buffer){
-      if (!readLine(fr)){
+      if (!_readLine(fr)){
         fr->goon = false;
+        D_(2, "No more to read\n");
         return result;
       }
     }
-    bool count = true;
+    bool cont = true;
     if (fr->bpos < strlen(fr->buffer)){
       result = fr->buffer[fr->bpos];
+      D_(3, "Giving pos %lu from buffer\n", fr->bpos);
       fr->bpos++;
     }
-    else if (readLine(fr)){
+    else if (_readLine(fr)){
+      D_(2, "Had to read another line\n");
       result = _getNextBase(fr);
-      count = false;
+      cont = false;
     }
     else{
+      D_(2, "No more to read\n");
       return result;
     }
     if (result >= 0x41 && result <= 0x7a){ //\w
-      if (count) fr->gpos++;
+      if (cont) fr->gpos++;
       //printf("--%d\t%d\t%c\n", (int) fr->gpos, (int) fr->bpos, result);
     }
     else{
@@ -136,14 +161,24 @@ char _getNextBase(fastaReader* fr){
   return result;
 }
 
+bool newChr(fastaReader* fr){
+  return fr->newchr;
+}
+
+char* chromName(fastaReader* fr){
+  return fr->cname;
+}
+
 char getNextBase(fastaReader* fr){
-  if (fr->newchr == true) fr->newchr = false;
+  if (fr->newchr){
+    fr->newchr = false;
+  }
   char r = _getNextBase(fr);
   return r;
 }
 
 void resetTo(fastaReader* fr, off_t fpos, char* chrname, uint32_t pos){
-  fseeko(fr->fp, fpos, SEEK_SET);
+  fseek(fr->fp, fpos, SEEK_SET);
   fr->gpos = pos;
   fr->goon = true;
 }
@@ -152,13 +187,13 @@ off_t gotoChr(fastaReader* fr, char* chrname){
   rewind(fr->fp);
   bool success = false;
   fr->goon = true;
-  while (!success && readLine(fr)){
+  while (!success && _readLine(fr)){
     if (fr->newchr && *fr->cname == *chrname){
       success = true;
     }
   }
   if (!success) fprintf(stderr, "Could not find chr %s\n", chrname);
-  off_t result = ftello(fr->fp);
+  off_t result = ftell(fr->fp);
   resetTo(fr, result, chrname, 0);
   return result;
 }

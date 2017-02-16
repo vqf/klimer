@@ -1,9 +1,6 @@
 #ifndef KMER_H_INCLUDED
 #define KMER_H_INCLUDED
 
-#ifndef DEBUG
-#define DEBUG 0
-#endif /* DEBUG */
 
 #define ENCLOSE(a) printf("\n---before, line %d\n", __LINE__); a; printf("\nafter, line %d---\n", __LINE__);
 #define SEQ(a, b) char* _seq = (char*) calloc(12, sizeof(char)); pos2seq(a, b->dest, _seq); printf("%s\n", _seq); free(_seq);

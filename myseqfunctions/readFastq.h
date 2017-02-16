@@ -1,4 +1,9 @@
 #include <sys/types.h>
+#pragma warning(push)
+#pragma warning(disable)
+#pragma error(push)
+#pragma error(disable)
+
 
 #ifndef _LARGEFILE64_SOURCE
 #define _LARGEFILE64_SOURCE
@@ -177,3 +182,5 @@ void destroyFastqReader(fastqReader** fqrp){
   }
   free(fqr);
 }
+#pragma error(pop)
+#pragma warning(pop)
