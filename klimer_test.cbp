@@ -42,7 +42,12 @@
 				<Option output="buildMap" prefix_auto="1" extension_auto="1" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters="C:\Users\vqf\Documents\Proyectos\sgeorge\PRF1_contig.seq" />
+				<Option parameters='C:\Users\vqf\Documents\Proyectos\sgeorge\PRF1_contig.seq &quot;/users/vqf/desktop/tmp.txt&quot;' />
+			</Target>
+			<Target title="compareMaps">
+				<Option output="compareMaps" prefix_auto="1" extension_auto="1" />
+				<Option type="1" />
+				<Option compiler="gcc" />
 			</Target>
 		</Build>
 		<Compiler>
@@ -57,6 +62,10 @@
 		<Unit filename="buildMap.c">
 			<Option compilerVar="CC" />
 			<Option target="buildMap" />
+		</Unit>
+		<Unit filename="compareMaps.c">
+			<Option compilerVar="CC" />
+			<Option target="compareMaps" />
 		</Unit>
 		<Unit filename="kliass.c">
 			<Option compilerVar="CC" />
@@ -79,13 +88,16 @@
 			<Option target="Release" />
 			<Option target="kliass" />
 			<Option target="bestSeq" />
+			<Option target="compareMaps" />
 		</Unit>
 		<Unit filename="myseqfunctions/kmerRead.h">
 			<Option target="Debug" />
 			<Option target="Release" />
 			<Option target="kliass" />
 			<Option target="bestSeq" />
+			<Option target="compareMaps" />
 		</Unit>
+		<Unit filename="myseqfunctions/mydmacros.h" />
 		<Unit filename="myseqfunctions/readFastas.h">
 			<Option target="buildMap" />
 		</Unit>

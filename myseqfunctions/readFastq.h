@@ -9,7 +9,7 @@
 #define _LARGEFILE64_SOURCE
 #endif /* _LARGEFILE64_SOURCE */
 
-#include <zlib.h>
+//#include <zlib.h>
 #define NAMESIZE 0xFFFF
 #define MAXREAD 0xFFFF
 

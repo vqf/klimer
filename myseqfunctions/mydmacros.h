@@ -20,6 +20,17 @@ typedef enum { false, true } bool;
 #define P_(a) printf("%s at %d: %p\n", #a, __LINE__, a);
 #define X_ printf("\n=====\nExit at %d\n====\n", __LINE__); exit(0);
 
+#define SCALAR(a, b) _CTR = 1; \
+                  while (a->next){\
+                    _CTR++; \
+                    a = a->next;\
+                  } \
+                  b = _CTR;
+
+#define SETKC(a, b) (((a)->flags = (a)->flags | b))
+#define UNSETKC(a, b) ((a)->flags = (a)->flags ^ b)
+#define ISKC(a, b) ((a)->flags & b)
+#define GETUID _UID; _UID++;
 
 
 #endif // MYDMACROS_H_INCLUDED

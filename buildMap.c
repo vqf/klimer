@@ -20,6 +20,7 @@ int main(int argc,char** argv){
   fastaReader* fr = newFastaReader(fp, 0);
   kmerHolder* kh = initKmer(11, 4);
   char fst = getNextBase(fr);
+  printf(">%s\n", fr->cname);
   updateKmer(&kh, &fst, addRelationship);
   while (fst){
     //printf("%c", fst);

@@ -13,6 +13,7 @@
 #include <time.h>
 #include "neatHtml.h"
 #include "traceIdList.h"
+#include "seqCollection.h"
 
 #define KMERBUFFERSIZE 0xFFFF
 #define NOKMER 0xFFFFFFFF
@@ -32,17 +33,6 @@ typedef enum { false, true } bool;
 // b -> flag to operate
 int _CTR = 1;
 uint32_t _UID = 0;
-#define SCALAR(a, b) _CTR = 1; \
-                  while (a->next){\
-                    _CTR++; \
-                    a = a->next;\
-                  } \
-                  b = _CTR;
-
-#define SETKC(a, b) (((a)->flags = (a)->flags | b))
-#define UNSETKC(a, b) ((a)->flags = (a)->flags ^ b)
-#define ISKC(a, b) ((a)->flags & b)
-#define GETUID _UID; _UID++;
 
 //#define addPosInTrace(a, b) printf("Line %d, cpos %lu\n", __LINE__, (LUI) cposInTrace); addPosInTrace(a, b)
 
@@ -50,24 +40,6 @@ uint32_t _UID = 0;
 // FLAGS
 
 //
-
-
-typedef struct kC{
-  uint32_t dest;
-  uint32_t uid;  // For debugging purposes, may lose later
-  uint16_t n; // Number of events supporting connection
-  uint8_t flags; // Connector-specific flags (in_use, ...)
-  tIdList* idflags; // Info about each trace (id, isFirst, isLast, inUse...)
-  struct kC* next; // Another kC, same from, different dest
-} kmerConnector;
-
-typedef struct mll{
-  kmerConnector* kc;
-  LISTTYPE ntid;
-  LISTTYPE posInTrace;
-  struct mll* next;
-  struct mll* last;
-} kcLL;
 
 typedef struct tmpKcVessel{
   tId* dest;
@@ -117,6 +89,7 @@ typedef struct kh{  //Used to read kmers
   uint8_t kmerSize;
   uint8_t nBases;
   uint32_t cVal;
+  bool canonic;  // Has it been standardized?
 } kmerHolder;
 
 
@@ -399,90 +372,6 @@ void nextId(memstruct** msp){
 }
 
 
-kcLL* newKcPointer(kmerConnector** newkcp, LISTTYPE ntid, LISTTYPE pos){
-  kmerConnector* newkc = *newkcp;
-  kcLL* result = (kcLL*) calloc(1, sizeof(kcLL));
-  result->kc = newkc;
-  result->next = NULL;
-  result->ntid = ntid;
-  result->posInTrace = pos;
-  result->last = result;
-  return result;
-}
-
-void resetKcLL(kcLL** llp){
-  kcLL* ll = *llp;
-  while (ll){
-    kcLL* todel = ll;
-    ll = ll->next;
-    free(todel);
-  }
-  llp = NULL;
-}
-
-void kcpush (kcLL** llp, kmerConnector** newkcp, LISTTYPE ntid, LISTTYPE pos){
-  kcLL* ll = *llp;
-  if (ll){
-    kcLL* tmp = ll->last;
-    if (!ll->last) tmp = ll;
-    tmp->next = newKcPointer(newkcp, ntid, pos);
-    ll->last = tmp->next;
-  }
-  else{
-    ll = newKcPointer(newkcp, ntid, pos);
-    ll->last = ll;
-  }
-  *llp = ll;
-}
-
-kcLL* kcCopy(kcLL** kclp){
-  kcLL* kcl = *kclp;
-  kcLL* result = NULL;
-  if (kcl){
-    //uint32_t pos = kcl->posInTrace;
-    while (kcl){
-      kcpush(&result, &kcl->kc, kcl->ntid, kcl->posInTrace);
-      kcl = kcl->next;
-    }
-    //result->posInTrace = pos;
-  }
-  return result;
-}
-
-void kcConcat(kcLL** llp, kcLL** llp2){
-  kcLL* ll1 = *llp;
-  kcLL* ll2 = *llp2;
-  if (ll1){
-    ll1 = ll1->last;
-    ll1->next = ll2;
-  }
-  else{
-    ll1 = ll2;
-  }
-  llp2 = NULL;
-}
-
-void printKc (memstruct* ms){
-  kcLL* ll = ms->status->trace;
-  char seq[12];
-  char scurr[12];
-  if (ll){
-    pos2seq(&ms, ll->kc->dest, seq);
-    pos2seq(&ms, ms->status->current, scurr);
-    printf("-----KmerConnector------\n");
-    printf("Current: %s\n", scurr);
-    printf("Dest: %s\n", seq);
-    if (!ll){
-      printf("NULL\n");
-      return;
-    }
-    while (ll){
-      printKmerConnector(ll->kc, "");
-      ll = ll->next;
-    }
-    printf("\n-----END KmerConnector------\n");
-  }
-}
 /*DEBUG*/
 int measureTrace(kcLL** llp){
   kcLL* ll = *llp;
@@ -1002,6 +891,30 @@ void printKmerConnectors(memstruct* ms, uint32_t pos){
   }
 }
 
+void printKc (memstruct* ms){
+  kcLL* ll = ms->status->trace;
+  char seq[12];
+  char scurr[12];
+  if (ll){
+    pos2seq(&ms, ll->kc->dest, seq);
+    pos2seq(&ms, ms->status->current, scurr);
+    printf("-----KmerConnector------\n");
+    printf("Current: %s\n", scurr);
+    printf("Dest: %s\n", seq);
+    if (!ll){
+      printf("NULL\n");
+      return;
+    }
+    while (ll){
+      printKmerConnector(ll->kc, "");
+      ll = ll->next;
+    }
+    printf("\n-----END KmerConnector------\n");
+  }
+}
+
+
+
 void printKcLL(memstruct* ms, kcLL* k){
   while (k){
     char* seq = (char*) calloc(ms->kmerSize + 1, sizeof(char));
@@ -1087,14 +1000,12 @@ uint32_t updateKmer(kmerHolder** kp, char* b, void (*callback)(kmerHolder**, uin
   //printf("%d-%c-%d\n", k->posInMemBuffer, b[0], result);
 
   if (result != NOKMER) callback(&k, result); //Side effects
+  if (k->canonic) k->canonic = false;
   return result;
 }
 
 kmerHolder* initKmer(uint8_t kmerSize, uint8_t nBases){
   kmerHolder* result = (kmerHolder*) malloc(sizeof(kmerHolder));
-  //Init rnd generator
-  time_t t;
-  srand((unsigned) time(&t));
   //
   if (nBases == 4){
     result->ms = initFourBase();
@@ -1116,9 +1027,51 @@ kmerHolder* initKmer(uint8_t kmerSize, uint8_t nBases){
   setKmerArray(&result, kmerSize);
   result->posInMemBuffer = 0;
   result->cVal = 0;
+  result->canonic = false;
   return result;
 }
 
+void _canonize(kmerHolder** khp){
+  kmerHolder* kh = *khp;
+  kmerHolder* result = initKmer(kh->kmerSize, kh->nBases);
+  memstruct* ms  = kh->ms;
+  uint32_t i = 0;//ms->status->current;
+  // First pass
+  seqCollection* unq = newSeqCollection();
+  for (i = 0; i < ms->nPos; i++){
+    kmerConnector* kc = ms->kmerArray[i];
+    while (kc && kc->n > 0){
+      tIdList* l = kc->idflags;
+      while (l){
+        if (IS(l, FIRST_IN_TRACE) && !IS(l, IN_USE)){
+          tIdList* start = isInTIdList(&l->posInTrace, 1);
+          LISTTYPE cPos = 1;
+          if (start){
+            kmerConnector* kcptr = nextKc(&ms, &kc, l->trace.n, cPos);
+            tIdList* idptr = _getTrace(&kcptr->idflags, l->trace.n, cPos);
+            while(kcptr){
+              SET(idptr, IN_USE);
+              cPos++;
+              kcptr = nextKc(&ms, &kc, l->trace.n, cPos);
+              idptr = _getTrace(&kcptr->idflags, l->trace.n, cPos);
+            }
+          }
+          else{
+            D_(0, "Warning, starting kc does not have pos 1\n");
+            D_(0, "Trying to recover...\n");
+            UNSET(l, FIRST_IN_TRACE);
+          }
+        }
+        l = l->next;
+      }
+      kc = kc->next;
+    }
+  }
+  // Second pass
+  for (i = 0; i < ms->nPos; i++){
+
+  }
+}
 
 
 #endif // KMER_H_INCLUDED

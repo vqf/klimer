@@ -6,68 +6,6 @@
 #include "stdio.h"
 
 
-typedef struct traceInfo{
-  LISTTYPE n;
-  kmerConnector* first;
-  bool extreme;
-  tIdList* downstreamCompat;
-  struct traceInfo* next;
-} traceInfo;
-
-typedef struct traces{
-  LISTTYPE currentUID;
-  traceInfo* traceList;
-} traces;
-
-typedef struct seqCollection{
-  kcLL* trace;
-  struct seqCollection* next;
-  struct seqCollection* down;
-} seqCollection;
-
-seqCollection* newSeqCollection(){
-  seqCollection* result = calloc(1, sizeof(seqCollection));
-  result->trace = NULL;
-  result->next = NULL;
-  result->down = NULL;
-  return result;
-}
-
-seqCollection* pushSeq(seqCollection** scp, kcLL** tracep){
-  // returns a pointer to the last element
-  seqCollection* sc = *scp;
-  while (sc && sc->next){
-    sc = sc->next;
-  }
-  seqCollection* nxt = newSeqCollection();
-  nxt->trace = *tracep;
-  sc->next = nxt;
-  return nxt;
-}
-
-void clearTraceUse(kcLL** kclp){
-  kcLL* kcl = *kclp;
-  while (kcl){
-    kmerConnector* kc = kcl->kc;
-    if (kc && ISKC(kc, IN_USE)){
-      UNSETKC(kc, IN_USE);
-    }
-    kcl = kcl->next;
-  }
-}
-
-void destroySeqCollection(seqCollection** scp){
-  seqCollection* sc = *scp;
-  while(sc){
-    if (sc->down){
-      destroySeqCollection(&sc->down);
-    }
-    seqCollection* nxt = sc->next;
-    free(sc);
-    sc = nxt;
-  }
-  scp = NULL;
-}
 
 
 char getLastBase(kmerHolder** khp, uint32_t pos){

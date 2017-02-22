@@ -7,8 +7,6 @@
 
 #define BSIZE 0xFFFF
 
-char* cname = NULL; // Current chr name
-uint32_t chrpos = 0;
 
 
 
@@ -29,6 +27,13 @@ char _getNextBase(fastaReader*);
 
 void noAction(memstruct* ms, uint32_t a){
   return;
+}
+
+bool looksLikeFasta(char* fname){
+  bool result = false;
+  FILE* fp = fopen(fname, "r");
+
+  fclose(fp);
 }
 
 fastaReader* newFastaReader(FILE* fp, uint32_t bSize){
