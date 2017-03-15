@@ -105,6 +105,7 @@
 			<Option target="bestSeq" />
 			<Option target="buildMap" />
 		</Unit>
+		<Unit filename="myseqfunctions/seqCollection.h" />
 		<Unit filename="myseqfunctions/traceIdList.h">
 			<Option target="Debug" />
 			<Option target="Release" />

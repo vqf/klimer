@@ -251,11 +251,6 @@ void delTIdFromList(tIdList** parr, LISTTYPE val){
     while (arr->next && arr->next->trace.n < val){
       arr = arr->next;
     }
-    if (arr->next->trace.n == val && !arr->next){
-      destroyTIdList(parr);
-      *parr = NULL;
-      return;
-    }
     if (arr->next && arr->next->trace.n == val){
       todel = arr->next;
       arr->next = arr->next->next;
@@ -388,24 +383,40 @@ void destroyTraceVessel(traceVessel** tvp){
   *tvp = NULL;
 }
 
+void delTraceFromVessel(traceVessel** tvp, LISTTYPE val){
+  traceVessel* t = *tvp;
+  traceVessel* l = t;
+  traceVessel* todel = NULL;
+  if (l->tidl->trace.n == val){ //Shift
+    todel = l;
+    *tvp = l->next;
+    todel->next = NULL;
+  }
+  else if (l->tidl->trace.n < val){
+    while (l->next && l->next->tidl->trace.n < val){
+      l = l->next;
+    }
+    if (l->next->tidl->trace.n == val){
+      todel = l->next;
+      l->next = todel->next;
+      todel->next = NULL;
+    }
+  }
+  destroyTraceVessel(&todel);
+}
 
-tIdList* traceLast(tIdList** tp){
+
+traceVessel* traceLast(tIdList** tp){
   tIdList* t = *tp;
-  tIdList* result = NULL;
+  traceVessel* result = NULL;
   tIdList* tmp = t;
   while (tmp){
     if (IS(tmp, LAST_IN_TRACE)){
-      tIdList* lPos = tmp->posInTrace;
-      LISTTYPE mpos = 0;
-      while (lPos && lPos->next){
-        lPos = lPos->next;
-      }
-      mpos = lPos->trace.n;
-      tIdList* ptr = insertInTIdList(&result, tmp->trace.n);
-      insertInTIdList(&ptr->posInTrace, mpos);
+      pushTraceInVessel(&result, &tmp);
     }
     tmp = tmp->next;
   }
+  //E_(2, printTIdList(result); printf("\n"););
   return result;
 }
 
@@ -443,27 +454,34 @@ bool isTraceLast(tIdList** t, tIdList* which){
   return result;
 }
 
-tIdList* traceFirst(tIdList** tp){
+traceVessel* traceFirst(tIdList** tp){
   tIdList* t = *tp;
-  tIdList* result = NULL;
+  traceVessel* result = NULL;
   tIdList* tmp = t;
   while (tmp){
     if (IS(tmp, FIRST_IN_TRACE)){
-      if (tmp->posInTrace->trace.n > 1){
-        D_(0, "First in trace, but posInTrace is %lu\n", (long unsigned) tmp->posInTrace->trace.n);
+      if (tmp->posInTrace && tmp->posInTrace->trace.n > 1){
+        D_(0, "First in trace, but first posInTrace is %lu\n", (long unsigned) tmp->posInTrace->trace.n);
+        D_(0, "Will try to continue...\n");
+        UNSET(tmp, FIRST_IN_TRACE);
       }
-      tIdList* ptr = insertInTIdList(&result, tmp->trace.n);
-      insertInTIdList(&ptr->posInTrace, 1);
+      else{
+        pushTraceInVessel(&result, &tmp);
+      }
     }
     tmp = tmp->next;
   }
-  E_(2, printTIdList(result); printf("\n"););
+  //E_(2, printTIdList(result); printf("\n"););
   return result;
 }
 
 void pushTraceInVessel(traceVessel** tvp, tIdList** tp){
   traceVessel* ptr = *tvp;
   tIdList* el = *tp;
+  if (!ptr){
+    *tvp = (traceVessel*) newTraceLL();
+    ptr = *tvp;
+  }
   while (ptr->next){
     ptr = ptr->next;
   }

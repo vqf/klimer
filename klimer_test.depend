@@ -10,7 +10,7 @@
 	<stdint.h>
 	<time.h>
 
-1487789209 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
+1489407097 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
 	<stdint.h>
 	<stdio.h>
 	<stdlib.h>
@@ -23,7 +23,7 @@
 
 1474478415 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\neathtml.h
 
-1487242881 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\traceidlist.h
+1489488736 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\traceidlist.h
 	"mydmacros.h"
 
 1485629922 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerio.h
@@ -68,6 +68,6 @@
 	"myseqfunctions/kmerRead.h"
 	"myseqfunctions/mydmacros.h"
 
-1487789209 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\seqcollection.h
+1487849689 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\seqcollection.h
 	"mydmacros.h"
 

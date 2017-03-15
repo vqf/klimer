@@ -10,23 +10,24 @@
 
 
 int main(int argc,char** argv){
-  tSet* t = newTSet(3, 5);
-  unshiftTSet(&t, 7, 8);
-  /*tSet* nav = t;
-  unshiftTSet(&t, 9, 8);
-  tSet* nav2 = t;
-  unshiftTSet(&t, 10, 8);*/
-  exciseTSet(&t, &t->next);
-  exciseTSet(&t, &t);
-  printTSet(t);
-  destroyTSet(&t);
-
 
   tIdList* l = newTIdList(5);
   insertInTIdList(&l, 7);
   insertInTIdList(&l, 1);
+  delTIdFromList(&l, 2);
   printTIdList(l); printf("\n");
-  tIdList* n = _getTrace(&l, 1, 0);
+  tIdList* n = _getTrace(&l, 5, 0);
+  SET(n, FIRST_IN_TRACE);
+  n = _getTrace(&l, 1, 0);
+  SET(n, FIRST_IN_TRACE);
+  n = _getTrace(&l, 7, 0);
+  SET(n, FIRST_IN_TRACE);
   printTIdList(n);
+  traceVessel* v = traceFirst(&l);
+  delTraceFromVessel(&v, 7);
+  delTraceFromVessel(&v, 1);
+  delTraceFromVessel(&v, 5);
+  printf("\n");
+  printTraceLL((traceLL*) v);
   return 0;
 }

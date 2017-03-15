@@ -1031,6 +1031,69 @@ kmerHolder* initKmer(uint8_t kmerSize, uint8_t nBases){
   return result;
 }
 
+
+void _consolidate(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i, LISTTYPE n, LISTTYPE delta){
+  // Delete trace n if it is compatible with i
+  kmerHolder* kh = *khp;
+  kmerConnector* kc = *kcp;
+  LISTTYPE cPos = 1; // Position in trace n. Corresponds to pos delta in i
+  kmerConnector* kcptr = kc;
+  bool doConsol = true;
+  bool doGoon   = true;
+  while (kcptr && doGoon){ // Check compatibility
+    tIdList* nptr = _getTrace(&kcptr->idflags, n, cPos);
+    if (nptr){
+      if (IS(nptr, LAST_IN_TRACE)){
+        tIdList* thisPos = _getTrace(&nptr->posInTrace, cPos, 0);
+        if (thisPos && IS(thisPos, LAST_IN_TRACE)){
+          doGoon = false;
+        }
+      }
+      // Could check here whether there is a nextKc in n
+    }
+    else{
+      doConsol = false;
+      doGoon = false;
+    }
+    cPos++;
+    kcptr = nextKc(&ms, &kc, i, cPos + delta - 1);
+  }
+  // Consolidate if compatible
+  if (doConsol){
+    cPos = delta;
+    kcptr = kc;
+    while (kcptr){ // Here they will be simply deleted
+      tIdList* todel = _getTrace(&kcptr->idflags, n, cPos);
+      cPos++;
+      kcptr = nextKc(&ms, &kc, i, cPos);
+    }
+  }
+}
+
+void _canonizeThis(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i){
+  kmerHolder* kh = *khp;
+  kmerConnector* kc = *kcp;
+  LISTTYPE cPos = 1;
+  kmerConnector* kcptr = kc;
+  tIdList* idptr = _getTrace(&kcptr->idflags, l->trace.n, cPos);
+  while(kcptr){
+    traceVessel* firsts = traceFirst(&idptr);
+    while (firsts){
+      if (firsts->tidl->trace.n != i){
+        D_(2, "Canonizing trace %lu with trace %lu\n", (LUI) i, (LUI) firsts->tidl->trace.n);
+        _canonizeThis(khp, &kcptr, firsts->tidl->trace.n);
+        _consolidate(khp, &kcptr, i, firsts->tidl->trace.n, cPos);
+      }
+      firsts = firsts->next;
+    }
+    cPos++;
+    kcptr = nextKc(&ms, &kc, i, cPos);
+    idptr = _getTrace(&kcptr->idflags, i, cPos);
+
+  }
+
+}
+
 void _canonize(kmerHolder** khp){
   kmerHolder* kh = *khp;
   kmerHolder* result = initKmer(kh->kmerSize, kh->nBases);
@@ -1044,23 +1107,7 @@ void _canonize(kmerHolder** khp){
       tIdList* l = kc->idflags;
       while (l){
         if (IS(l, FIRST_IN_TRACE) && !IS(l, IN_USE)){
-          tIdList* start = isInTIdList(&l->posInTrace, 1);
-          LISTTYPE cPos = 1;
-          if (start){
-            kmerConnector* kcptr = nextKc(&ms, &kc, l->trace.n, cPos);
-            tIdList* idptr = _getTrace(&kcptr->idflags, l->trace.n, cPos);
-            while(kcptr){
-              SET(idptr, IN_USE);
-              cPos++;
-              kcptr = nextKc(&ms, &kc, l->trace.n, cPos);
-              idptr = _getTrace(&kcptr->idflags, l->trace.n, cPos);
-            }
-          }
-          else{
-            D_(0, "Warning, starting kc does not have pos 1\n");
-            D_(0, "Trying to recover...\n");
-            UNSET(l, FIRST_IN_TRACE);
-          }
+          _canonizeThis(khp, &kc, l->trace.n);
         }
         l = l->next;
       }

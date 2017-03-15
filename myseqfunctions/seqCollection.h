@@ -114,6 +114,18 @@ seqCollection* newSeqCollection(){
 seqCollection* pushSeq(seqCollection** scp, kcLL** tracep){
   // returns a pointer to the last element
   seqCollection* sc = *scp;
+  while (sc && sc->down){
+    sc = sc->down;
+  }
+  seqCollection* dn = newSeqCollection();
+  dn->trace = *tracep;
+  sc->down = dn;
+  return dn;
+}
+
+seqCollection* addSeq(seqCollection** scp, kcLL** tracep){
+  // returns a pointer to the last element
+  seqCollection* sc = *scp;
   while (sc && sc->next){
     sc = sc->next;
   }
@@ -122,6 +134,7 @@ seqCollection* pushSeq(seqCollection** scp, kcLL** tracep){
   sc->next = nxt;
   return nxt;
 }
+
 
 void clearTraceUse(kcLL** kclp){
   kcLL* kcl = *kclp;
