@@ -34,6 +34,7 @@ bool looksLikeFasta(char* fname){
   FILE* fp = fopen(fname, "r");
 
   fclose(fp);
+  return result;
 }
 
 fastaReader* newFastaReader(FILE* fp, uint32_t bSize){
