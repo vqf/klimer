@@ -116,7 +116,7 @@ bool _readLine(fastaReader* fr){
   }
   else{
     char fst = fr->buffer[fr->bpos];
-    D_(2, "%c, pos %d\n", fr->buffer, fr->bpos);
+    //D_(2, "%c, pos %d\n", (int) fr->buffer, (int) fr->bpos);
     if (fst == 0x3e){ //>
       //if (fr->cname) free(fr->cname);
       _getCname(fr);
@@ -144,7 +144,7 @@ char _getNextBase(fastaReader* fr){
     bool cont = true;
     if (fr->bpos < strlen(fr->buffer)){
       result = fr->buffer[fr->bpos];
-      D_(3, "Giving pos %lu from buffer\n", fr->bpos);
+      D_(3, "Giving pos %lu from buffer\n", (LUI) fr->bpos);
       fr->bpos++;
     }
     else if (_readLine(fr)){

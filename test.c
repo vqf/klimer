@@ -16,14 +16,14 @@ int main(int argc,char** argv){
   if (argc < 2){
     fileout = "/users/vqf/desktop/tmp.txt";
   }
-  kmerHolder *km = initKmer(1, 4);
+  kmerHolder *km = initKmer(11, 4);
   char* dtext = "GTAAAAAAAAAAAAAAACGTACGTACGAGCT";
   uint8_t l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
-  dtext = "CAGTAAAAAAAAAAAAAAACGTACGTAC";
+  dtext = "GACGAGCTAACGCGTACGTAGAAAAAAAAAAAAAAAACGTACGTACGAGCTGTACGTACGTTCGTACGAGCGCGTACGTAGAAAAAAAAAAAA";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
@@ -41,7 +41,7 @@ int main(int argc,char** argv){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
-  dtext = "GACGAGCTAACGCGTACGTAGAAAAAAAAAAAAAAAACGTACGTACGAGCTGTACGTACGTTCGTACGAGCGCGTACGTAGAAAAAAAAAAAA";
+  dtext = "GTACGAGCGCGTACGTAGAAAAAAAAAAAAAAAAAAGTACGTAGAAAAA";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);

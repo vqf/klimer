@@ -17,7 +17,10 @@ int main(int argc,char** argv){
   delTIdFromList(&l, 2);
   printTIdList(l); printf("\n");
   tIdList* m = _getTrace(&l, 1, 0);
-  delTIdFromList(&l, 1);
-  printTIdList(l);
+  traceVessel* tv = NULL;
+  pushTraceInVessel(&tv, &m);
+  pushTraceInVessel(&tv, &m->next->next);
+  pushTraceInVessel(&tv, &l);
+  printTraceLL((traceLL*) tv);
   return 0;
 }

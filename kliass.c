@@ -24,6 +24,7 @@ int main(int argc,char** argv){
     char* yo = getTraceSeq(&kh, &s1);
     printf("%s\n", yo);
     free(yo);
+    resetKcLL(&s1);
     s1 = nextTrace(&kh);
   }
   resetKcLL(&s1);

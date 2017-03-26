@@ -25,15 +25,20 @@ int main(int argc,char** argv){
   while (fst){
     //printf("%c", fst);
     fst = getNextBase(fr);
-    updateKmer(&kh, &fst, addRelationship);
     if (fr->newchr){
       printf(">%s\n", fr->cname);
-      resetKmer(&kh);
+      resetTrace(&kh);
+    }
+    else{
+      updateKmer(&kh, &fst, addRelationship);
     }
   }
+  resetTrace(&kh);
   printf("\n");
   writeOut(&kh, outfile);
   destroyFastaReader(&fr);
+  fclose(fp);
   free(outfile);
+  destroyKh(&kh);
   return 0;
 }

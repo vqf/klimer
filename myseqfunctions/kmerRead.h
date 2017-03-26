@@ -61,8 +61,7 @@ kcLL* nextTrace(kmerHolder** khp){
           tIdList* start = isInTIdList(&l->posInTrace, 1);
           if (!IS(start, IN_USE)){
             SET(start, IN_USE);
-            kmerConnector* dummy = newKmerConnector(i);
-            kcpush(&result, &dummy, l->trace.n, 0);
+            kcpush(&result, &kc, l->trace.n, 0);
             D_(2, "Found starting trace at %lu\n", (LUI) i);
             ms->status->current = i;
             kcLL* f = followTrace(khp, i, l->trace.n, 1);

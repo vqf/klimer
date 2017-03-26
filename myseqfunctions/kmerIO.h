@@ -33,6 +33,7 @@ uint32_t* rebuildCirc(uint32_t l, uint32_t* arr){
 uint8_t writeOut(kmerHolder** khp, char* fname){
   kmerHolder* kh = *khp;
   memstruct* ms = kh->ms;
+  _canonize(khp);
   FILE* fout = fopen(fname, "wb");
   if (fout){
     D_(2, "Writing header\n")

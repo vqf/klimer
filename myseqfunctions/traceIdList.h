@@ -408,16 +408,18 @@ void delTraceFromVessel(traceVessel** tvp, LISTTYPE val){
 
 void pushTraceInVessel(traceVessel** tvp, tIdList** tp){
   traceVessel* ptr = *tvp;
-  tIdList* el = *tp;
   if (!ptr){
     *tvp = (traceVessel*) newTraceLL();
     ptr = *tvp;
   }
-  while (ptr->next){
+  else{
+    while (ptr->next){
+      ptr = ptr->next;
+    }
+    ptr->next = (traceVessel*) newTraceLL();
     ptr = ptr->next;
   }
-  ptr->tidl = el;
-  ptr->next = (traceVessel*) newTraceLL();
+  ptr->tidl = *tp;
 }
 
 traceVessel* traceLast(tIdList** tp){
