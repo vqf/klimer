@@ -62,6 +62,7 @@ kcLL* nextTrace(kmerHolder** khp){
           if (!IS(start, IN_USE)){
             SET(start, IN_USE);
             kcpush(&result, &kc, l->trace.n, 0);
+            result->posInTrace = i;
             D_(2, "Found starting trace at %lu\n", (LUI) i);
             ms->status->current = i;
             kcLL* f = followTrace(khp, i, l->trace.n, 1);
@@ -86,7 +87,7 @@ char* getTraceSeq(kmerHolder** khp, kcLL** kcp){
   SCALAR(tmp, l);
   uint32_t cl = (uint32_t) (kh->kmerSize + l + 1);
   char* result = (char*) calloc((size_t) cl, sizeof(char));
-  pos2seq(&kh->ms, kcll->kc->dest, result);
+  pos2seq(&kh->ms, kcll->posInTrace, result);
   uint32_t j = (uint32_t) ((kh->kmerSize) - 1);
   while (kcll){
     result[j] = getLastBase(khp, kcll->kc->dest);

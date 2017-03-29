@@ -3,6 +3,7 @@
 #include "myseqfunctions/kmer.h"
 #include "myseqfunctions/kmerIO.h"
 #include "myseqfunctions/readFastas.h"
+#define KMERLENGTH 11
 //#include "myseqfunctions/readFastq.h"
 
 int main(int argc,char** argv){
@@ -18,7 +19,7 @@ int main(int argc,char** argv){
   }
   FILE* fp = fopen(infile, "r");
   fastaReader* fr = newFastaReader(fp, 0);
-  kmerHolder* kh = initKmer(11, 4);
+  kmerHolder* kh = initKmer(KMERLENGTH, 4);
   char fst = getNextBase(fr);
   printf(">%s\n", fr->cname);
   updateKmer(&kh, &fst, addRelationship);

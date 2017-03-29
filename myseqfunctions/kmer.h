@@ -1065,8 +1065,8 @@ void _consolidate(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i, LISTTYPE n,
       else{
         goon = false;
       }
-      cPos++; cnPos++;
       kcptr = nextKc(&ms, &kcptr, i, cPos);
+      cPos++; cnPos++;
     }
     if (goon){
       kcptr = nextKc(&ms, &kc, n, cnPos);
@@ -1079,8 +1079,8 @@ void _consolidate(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i, LISTTYPE n,
         newPos->trace.nReads = oldPos->trace.nReads;
         newTrace->trace.flag = oldTrace->trace.flag;
         newTrace->trace.nReads = oldTrace->trace.nReads;
-        cPos++; cnPos++;
         kcptr = nextKc(&ms, &kc, n, cnPos);
+        cPos++; cnPos++;
       }
     }
   }
