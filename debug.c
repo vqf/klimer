@@ -7,20 +7,21 @@
 #include <stdint.h>
 #include <time.h>
 #include "myseqfunctions/traceIdList.h"
+#include "myseqfunctions/readFastas.h"
+
 
 
 int main(int argc,char** argv){
 
-  tIdList* l = newTIdList(5);
-  insertInTIdList(&l, 7);
-  insertInTIdList(&l, 1);
-  delTIdFromList(&l, 2);
-  printTIdList(l); printf("\n");
-  tIdList* m = _getTrace(&l, 1, 0);
-  traceVessel* tv = NULL;
-  pushTraceInVessel(&tv, &m);
-  pushTraceInVessel(&tv, &m->next->next);
-  pushTraceInVessel(&tv, &l);
+  tIdList* n = newTIdList(1741);
+  addPosInTrace(&n, 238);
+  tIdList* second = addTrace(&n, 3276);
+  addPosInTrace(&second, 1);
+  SET(second, FIRST_IN_TRACE);
+  SET(second->posInTrace, FIRST_IN_TRACE);
+  traceVessel* tv = traceFirst(&n);
   printTraceLL((traceLL*) tv);
+
+  printTIdList(n);
   return 0;
 }

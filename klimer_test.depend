@@ -10,7 +10,7 @@
 	<stdint.h>
 	<time.h>
 
-1490700867 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
+1491410274 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
 	<stdint.h>
 	<stdio.h>
 	<stdlib.h>
@@ -23,10 +23,10 @@
 
 1474482015 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\neathtml.h
 
-1489755527 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\traceidlist.h
+1491390715 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\traceidlist.h
 	"mydmacros.h"
 
-1490700922 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerio.h
+1491302049 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerio.h
 	"kmer.h"
 
 1485629211 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\debugfileio.h
@@ -48,18 +48,18 @@
 	<inttypes.h>
 	<unistd.h>
 
-1489667301 source:c:\users\vqf\documents\cpp\klimer_project\github\buildmap.c
-	<stdio.h>
+1491392211 source:c:\users\vqf\documents\cpp\klimer_project\github\buildmap.c
 	<stdlib.h>
+	<time.h>
 	"myseqfunctions/kmer.h"
 	"myseqfunctions/kmerIO.h"
-	"myseqfunctions/readFastas.h"
+	"myseqfunctions/readSeqFiles.h"
 
-1489663910 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\readfastas.h
-	<sys/types.h>
+1491296680 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\readfastas.h
 	"mydmacros.h"
+	"IOLayer.h"
 
-1490721168 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\mydmacros.h
+1491335326 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\mydmacros.h
 
 1487331485 source:c:\users\vqf\documents\cpp\klimer_project\github\comparemaps.c
 	<stdio.h>
@@ -70,4 +70,30 @@
 
 1487853289 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\seqcollection.h
 	"mydmacros.h"
+
+1491220087 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\readfastq.h
+	<sys/types.h>
+	<stdio.h>
+	"IOLayer.h"
+
+1121657208 c:\program files (x86)\gnuwin32\include\zlib.h
+	"zconf.h"
+
+1121877626 c:\program files (x86)\gnuwin32\include\zconf.h
+	<windows.h>
+	<sys/types.h>
+	<unistd.h>
+	<unixio.h>
+
+1491294607 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\iolayer.h
+	<sys/types.h>
+	<stdio.h>
+	"mydmacros.h"
+	<zlib.h>
+	<errno.h>
+
+1491294501 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\readseqfiles.h
+	"stdio.h"
+	"readFastq.h"
+	"readFastas.h"
 

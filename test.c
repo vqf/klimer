@@ -30,6 +30,7 @@ int main(int argc,char** argv){
   }
   resetTrace(&km);
   dtext = "AAAAAAAAAAAAAAGTACGTAGAAAAAAAAAAAAACCCGTACGTAAAAAA";
+
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);

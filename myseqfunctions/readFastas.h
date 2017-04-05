@@ -1,46 +1,47 @@
-#include <sys/types.h>
 #include "mydmacros.h"
-
-#ifndef _LARGEFILE64_SOURCE
-#define _LARGEFILE64_SOURCE
-#endif /* _LARGEFILE64_SOURCE */
-
-#define BSIZE 0xFFFF
-
+#include "IOLayer.h"
 
 
 
 typedef struct fr{
-  FILE* fp;
+  fpointer* fp;
   char* buffer;
   char* cname;
+  instream type;
   uint32_t bufferSize;
   uint32_t bpos; //Position in buffer
   uint32_t gpos; //Position in genome
-  off_t cchrpos;
   bool goon;
   bool newchr;
+  bool seqstart;
 } fastaReader;
 
 bool _readLine(fastaReader*);
 char _getNextBase(fastaReader*);
 
-void noAction(memstruct* ms, uint32_t a){
-  return;
-}
 
 bool looksLikeFasta(char* fname){
   bool result = false;
-  FILE* fp = fopen(fname, "r");
-
-  fclose(fp);
+  bool goon = true;
+  fpointer* tmpfp = newFPointer(fname);
+  char* line = (char*) calloc(60, sizeof(char));
+  while (goon){
+    char* r = myfgets(&tmpfp, &line, 60);
+    if (!r) goon = false;
+    char* ec = &line[0];
+    if (*ec > 0x20){
+      if (*ec == 0x3e) result = true;
+      goon = false;
+    }
+  }
+  free(line);
+  destroyFPointer(&tmpfp);
   return result;
 }
 
-fastaReader* newFastaReader(FILE* fp, uint32_t bSize){
+fastaReader* initFastaReader(char* fName, uint32_t bSize){
   if (bSize == 0) bSize = BSIZE;
   fastaReader* result = (fastaReader*) calloc(1, sizeof(fastaReader));
-  result->fp = fp;
   result->bufferSize = bSize;
   result->buffer = NULL;
   result->cname = NULL;
@@ -48,16 +49,22 @@ fastaReader* newFastaReader(FILE* fp, uint32_t bSize){
   result->gpos = 0;
   result->goon = true;
   result->newchr = true;
+  result->seqstart = true;
+  result->fp = newFPointer(fName);
   return result;
 }
 
+
 void destroyFastaReader(fastaReader** frp){
   D_(2, "Destroying fasta reader\n");
-  fastaReader* fr = *frp;
-  if (fr->buffer) free(fr->buffer);
-  if (fr->cname) free(fr->cname);
-  free(fr);
-  frp = NULL;
+  if (frp && *frp){
+    fastaReader* fr = *frp;
+    if (fr->buffer) free(fr->buffer);
+    if (fr->cname) free(fr->cname);
+    destroyFPointer(&fr->fp);
+    free(fr);
+    frp = NULL;
+  }
 }
 
 void printchars(char *seq){
@@ -106,26 +113,30 @@ bool _readLine(fastaReader* fr){
     D_(2, "Creating %lu - byte buffer\n", (LUI) fr->bufferSize);
     fr->buffer = (char*) calloc(fr->bufferSize, sizeof(char));
   }
-  if (fgets(fr->buffer, fr->bufferSize, fr->fp) == NULL){ //Finished file
+  if (myfgets(&fr->fp, &fr->buffer, fr->bufferSize)){
+    char fst = fr->buffer[fr->bpos];
+    //D_(2, "%c, pos %d\n", (int) fr->buffer, (int) fr->bpos);
+    /*if (fr->seqstart){
+      while(fst != 0x3e && myfgets(&fr->fp, &fr->buffer, fr->bufferSize)){
+        fst = fr->buffer[fr->bpos];
+      }
+      fr->seqstart = false;
+    }*/
+    if (fst == 0x3e){ //>
+      _getCname(fr);
+      D_(2, "Chr %s\n", fr->cname);
+      fr->newchr = true;
+      _readLine(fr);
+      return false;
+    }
+  }
+  else{ //Finished file
     free(fr->buffer);
     fr->buffer = NULL;
     fr->goon = false;
     fr->newchr = false;
     fr->gpos = 0;
     result = false;
-  }
-  else{
-    char fst = fr->buffer[fr->bpos];
-    //D_(2, "%c, pos %d\n", (int) fr->buffer, (int) fr->bpos);
-    if (fst == 0x3e){ //>
-      //if (fr->cname) free(fr->cname);
-      _getCname(fr);
-      D_(2, "Chr %s at %li\n", fr->cname, (LUI) ftell (fr->fp));
-      fr->newchr = true;
-      fr->cchrpos = ftell(fr->fp);
-      //fr->goon = false;
-      _readLine(fr);
-    }
   }
   return result;
 }
@@ -150,6 +161,7 @@ char _getNextBase(fastaReader* fr){
     else if (_readLine(fr)){
       D_(2, "Had to read another line\n");
       result = _getNextBase(fr);
+      if (fr->newchr) return '\0';
       cont = false;
     }
     else{
@@ -171,11 +183,8 @@ bool newChr(fastaReader* fr){
   return fr->newchr;
 }
 
-char* chromName(fastaReader* fr){
-  return fr->cname;
-}
 
-char getNextBase(fastaReader* fr){
+char getNextFaBase(fastaReader* fr){
   if (fr->newchr){
     fr->newchr = false;
   }
@@ -183,6 +192,8 @@ char getNextBase(fastaReader* fr){
   return r;
 }
 
+
+/*
 void resetTo(fastaReader* fr, off_t fpos, char* chrname, uint32_t pos){
   fseek(fr->fp, fpos, SEEK_SET);
   fr->gpos = pos;
@@ -204,6 +215,6 @@ off_t gotoChr(fastaReader* fr, char* chrname){
   return result;
 }
 
-
+*/
 
 

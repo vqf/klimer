@@ -1,10 +1,11 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "myseqfunctions/kmer.h"
 #include "myseqfunctions/kmerIO.h"
-#include "myseqfunctions/readFastas.h"
+#include "myseqfunctions/readSeqFiles.h"
+
 #define KMERLENGTH 11
-//#include "myseqfunctions/readFastq.h"
+#define TELLUSEREVERY 5000
 
 int main(int argc,char** argv){
   if (argc < 2){
@@ -17,28 +18,31 @@ int main(int argc,char** argv){
   if (argc >= 3){
     outfile = argv[2];
   }
-  FILE* fp = fopen(infile, "r");
-  fastaReader* fr = newFastaReader(fp, 0);
+  time_t start = time(NULL);
+  seqReader* sf = newSeqReader(infile);
   kmerHolder* kh = initKmer(KMERLENGTH, 4);
-  char fst = getNextBase(fr);
-  printf(">%s\n", fr->cname);
-  updateKmer(&kh, &fst, addRelationship);
-  while (fst){
-    //printf("%c", fst);
-    fst = getNextBase(fr);
-    if (fr->newchr){
-      printf(">%s\n", fr->cname);
-      resetTrace(&kh);
-    }
-    else{
+  uint32_t counter = 0;
+  uint32_t nseq = 0;
+  while (getNextRead(&sf)){
+    D_(1, "Reading %s\n", chromName(&sf));
+    char fst = getNextBase(&sf);
+    while (fst){
       updateKmer(&kh, &fst, addRelationship);
+      fst = getNextBase(&sf);
+    }
+    resetTrace(&kh);
+    counter++;
+    nseq++;
+    if (counter >= TELLUSEREVERY){
+      counter = 0;
+      time_t now = time(NULL);
+      _canonize(&kh);
+      D_(0, "%d sequences in %ld seconds\n", nseq, now-start);
     }
   }
-  resetTrace(&kh);
-  printf("\n");
   writeOut(&kh, outfile);
-  destroyFastaReader(&fr);
-  fclose(fp);
+  //summarize(kh->ms);
+  destroySeqReader(&sf);
   free(outfile);
   destroyKh(&kh);
   return 0;

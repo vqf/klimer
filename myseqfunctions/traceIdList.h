@@ -238,26 +238,47 @@ void mergeTIdLists(tIdList** l1p, tIdList* l2){
   }
 }
 
+tIdList* isInTIdList(tIdList** arrp, LISTTYPE val){
+  tIdList *arr = *arrp;
+  tIdList* result = NULL;
+  while (!result && arr){
+    if (arr->trace.n == val){
+      result = arr;
+    }
+    arr = arr->next;
+  }
+  return result;
+}
 
-void delTIdFromList(tIdList** parr, LISTTYPE val){
+
+void delTIdFromList(tIdList** parr, LISTTYPE val, LISTTYPE pos){
   tIdList* arr = *parr;
   tIdList* todel = NULL;
-  if (arr->trace.n == val){ //Shift
-    todel = arr;
-    *parr = arr->next;
-    todel->next = NULL;
-  }
-  else if (arr->trace.n < val){
-    while (arr->next && arr->next->trace.n < val){
-      arr = arr->next;
+  if (pos > 0){
+    tIdList* el = isInTIdList(parr, val);
+    delTIdFromList(&el->posInTrace, pos, 0);
+    if (!el->posInTrace){
+      delTIdFromList(parr, val, 0);
     }
-    if (arr->next && arr->next->trace.n == val){
-      todel = arr->next;
-      arr->next = arr->next->next;
+  }
+  else{
+    if (arr->trace.n == val){ //Shift
+      todel = arr;
+      *parr = arr->next;
       todel->next = NULL;
     }
+    else if (arr->trace.n < val){
+      while (arr->next && arr->next->trace.n < val){
+        arr = arr->next;
+      }
+      if (arr->next && arr->next->trace.n == val){
+        todel = arr->next;
+        arr->next = arr->next->next;
+        todel->next = NULL;
+      }
+    }
+    destroyTIdList(&todel);
   }
-  destroyTIdList(&todel);
 }
 
 void intersectTIdLists(tIdList** l1p, tIdList* l2){
@@ -280,24 +301,13 @@ void intersectTIdLists(tIdList** l1p, tIdList* l2){
       }
       else{
         tIdList* tmp2 = tmp->next;
-        delTIdFromList(l1p, tmp->trace.n);
+        delTIdFromList(l1p, tmp->trace.n,0);
         tmp = tmp2;
       }
     }
   }
 }
 
-tIdList* isInTIdList(tIdList** arrp, LISTTYPE val){
-  tIdList *arr = *arrp;
-  tIdList* result = NULL;
-  while (!result && arr){
-    if (arr->trace.n == val){
-      result = arr;
-    }
-    arr = arr->next;
-  }
-  return result;
-}
 
 tIdList* isInTIdListNotInUse(tIdList** arrp, LISTTYPE val){
   tIdList *arr = *arrp;
@@ -664,6 +674,9 @@ void unsetAsLast (tIdList** t, LISTTYPE id, LISTTYPE pos){
   if (tmp){
     UNSET(tmp, LAST_IN_TRACE);
     tIdList* tmpos = _getTrace(&tmp->posInTrace, pos, 0);
+    if (!IS(tmpos, LAST_IN_TRACE)){
+      D_(0, "Warning, pos %lu is not last in trace %lu\n", (LUI) tmpos->trace.n, (LUI) tmp->trace.n);
+    }
     UNSET(tmpos, LAST_IN_TRACE);
   }
   else{
