@@ -6,7 +6,7 @@
 #endif /* BOOL */
 
 #ifndef DEBUG
-#define DEBUG 0
+#define DEBUG 2
 #endif /* DEBUG */
 
 

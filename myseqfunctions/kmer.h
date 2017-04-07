@@ -569,7 +569,7 @@ void resetTrace(kmerHolder** kp){
       tmp = tmp->next;
     }
     if (ms->status->trace){
-      setAsFirst(&ms->status->trace->kc->idflags, ms->status->cId, 1);
+      setAsFirst(&ms->status->trace->kc->idflags, ms->status->cId, 1, ms->status->trace->from);
       setAsLast(&ms->status->trace->last->kc->idflags, ms->status->cId, cposInTrace - 1);
     }
   }
@@ -602,12 +602,13 @@ void resetTrace(kmerHolder** kp){
           if (!fst){
             D_(0, "Warning: There should be a starting trace here, but I cannot find it\n");
           }
-          if (IS(fst, FIRST_IN_TRACE)){
+          if (isFirstAndCompatible(&fst, tmp->from)){
             unsetAsFirst(&fst, cId, 1);
             shiftPosInTrace(&ms, &tmp->kc, &fst, eachTSet->upShift - 1);
           }
           else{
             D_(0, "Warning, there should be a first_in_trace\n");
+            E_(0, printTIdList(fst); printf(" %lu\n", (LUI) tmp->from));
           }
           tmp = ms->status->trace;
           while (cposInTrace < eachTSet->upShift){
@@ -616,7 +617,7 @@ void resetTrace(kmerHolder** kp){
             cposInTrace++;
             tmp = tmp->next;
           }
-          setAsFirst(&ms->status->trace->kc->idflags, cId, 1);
+          setAsFirst(&ms->status->trace->kc->idflags, cId, 1, ms->status->trace->from);
           if (eachTSet->type == 3){
             while(tmp){
               tIdList* tl = addTrace(&tmp->kc->idflags, cId);
@@ -792,7 +793,7 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp){
           dPos = dPos->next;
         }
       }
-      else if (IS(eachTrace, FIRST_IN_TRACE)){
+      else if (isFirstAndCompatible(&eachTrace, ms->status->current)){
         D_(2, "Might extend up trace %lu\n", (LUI) eachTrace->trace.n);
         unshiftTSet(&ms->status->traceSet, eachTrace->trace.n, 1);
         ms->status->traceSet->type = 1;
@@ -834,7 +835,7 @@ kmerConnector* getConnector(memstruct** msp, uint32_t from, uint32_t to){
     }
   }
   //ms->status->cId = maxInList(ms->status->traceSet);
-  kcpush(&ms->status->trace, &result, 0, 0);
+  kcpush(&ms->status->trace, &result, 0, 0, from);
   return result;
 }
 

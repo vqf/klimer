@@ -42,13 +42,13 @@ int main(int argc,char** argv){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
-  dtext = "GTACGAGCGCGTACGTAGAAAAAAAAAAAAAAAAAAGTACGTAGAAAAA";
+  dtext = "AAAAAAACAAAGTACGTAGAAAAAAAAAAAAACCCGTACGTAAAAAA";
   l = strlen(dtext);
   for (int i = 0; i < l; i++){
     updateKmer(&km, &dtext[i], addRelationship);
   }
   resetTrace(&km);
-  summarize(km->ms);
+  //summarize(km->ms);
   writeOut(&km, fileout);
   //printf("Written\n");
   //kmerHolder* khr = readIn("/users/vqf/desktop/tmp.txt");

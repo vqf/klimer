@@ -77,7 +77,7 @@ void printTIdList(tIdList* a){
     if (a->posInTrace) printf(", ");
     printTIdList(a->posInTrace);
     if (a->posInTrace){
-      printf("]");
+      printf("] -> ");
     }
     else{
       printf("}");
@@ -559,23 +559,18 @@ traceVessel* _getTraces(tIdList** tp, tIdList* which){
 }
 
 
-bool isFirst(tIdList** t, tIdList* which){
-  if (!which) return false;
-  bool result = false;
-  traceVessel* tmp = _getTraces(t, which);
-  traceVessel* ptr = tmp;
-  while (ptr->tidl){
-    if (IS(ptr->tidl, FIRST_IN_TRACE)){
-      result = true;
-    }
-    else{
-      destroyTraceVessel(&tmp);
-      return false;
-    }
-    ptr = ptr->next;
+bool isFirstAndCompatible(tIdList** tp, LISTTYPE from){
+  tIdList* t = *tp;
+  if (!IS(t, FIRST_IN_TRACE)){
+    return false;
   }
-  destroyTraceVessel(&tmp);
-  return result;
+  if (!t->posInTrace->posInTrace){
+    return false;
+  }
+  if (t->posInTrace->posInTrace->trace.n == from){
+    return true;
+  }
+  return false;
 }
 
 bool isLast(tIdList** t, tIdList* which){
@@ -597,15 +592,13 @@ bool isLast(tIdList** t, tIdList* which){
   return result;
 }
 
-void setAsFirst (tIdList** t, LISTTYPE id, LISTTYPE pos){
+void setAsFirst (tIdList** t, LISTTYPE id, LISTTYPE pos, LISTTYPE from){
   tIdList* tmp = _getTrace(t, id, pos);
   if (tmp){
     SET(tmp, FIRST_IN_TRACE);
     tIdList* tmpos = _getTrace(&tmp->posInTrace, pos, 0);
-    if (!tmpos){
-      printTIdList(tmp->posInTrace);X_;
-    }
     SET(tmpos, FIRST_IN_TRACE);
+    addPosInTrace(&tmpos, from);
   }
   else{
     D_(0, "Cannot find first in trace, id %lu, pos %lu\n", (LUI) id, (LUI) pos);
@@ -659,10 +652,24 @@ void printTraceLL(traceLL* toprint){
 
 void unsetAsFirst (tIdList** t, LISTTYPE id, LISTTYPE pos){
   tIdList* tmp = _getTrace(t, id, pos);
+  bool keepFlag = false;
   if (tmp){
-    UNSET(tmp, FIRST_IN_TRACE);
-    tIdList* tmpos = _getTrace(&tmp->posInTrace, pos, 0);
-    UNSET(tmpos, FIRST_IN_TRACE);
+    tIdList* tmpos = tmp->posInTrace;
+    while (tmpos){
+      if (tmpos->trace.n == pos){
+        UNSET(tmpos, FIRST_IN_TRACE);
+        tIdList* todel = tmpos->posInTrace;
+        tmpos->posInTrace = NULL;
+        destroyTIdList(&todel);
+      }
+      else if (IS(tmpos, FIRST_IN_TRACE)){
+        keepFlag = true;
+      }
+      tmpos = tmpos->next;
+    }
+    if (!keepFlag){
+      UNSET(tmp, FIRST_IN_TRACE);
+    }
   }
   else{
     D_(0, "Cannot find last in trace\n");

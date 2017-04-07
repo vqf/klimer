@@ -67,6 +67,13 @@ uint8_t writeOut(kmerHolder** khp, char* fname){
               fwrite(&loops->trace.n, sizeof(LISTTYPE), 1, fout);
               fwrite(&loops->trace.flag, sizeof(uint8_t), 1, fout);
               fwrite(&loops->trace.nReads, sizeof(uint32_t), 1, fout);
+              if (IS(loops, FIRST_IN_TRACE)){
+                tIdList* prev = loops->posInTrace;
+                if (!prev){
+                  D_(0, "Lacking prev info. Will try to continue, but expect glitches :(\n");
+                }
+                fwrite(&prev->trace.nReads, sizeof(LISTTYPE), 1, fout); // From for pos 1
+              }
               loops = loops->next;
             }
             D_(2, "-Next trace\n");
@@ -98,6 +105,7 @@ kmerHolder* readIn(char* file){
     fread(&nBases, sizeof(uint8_t), 1, fin);
     if (magic != MAGIC){
       fprintf(stderr, "Your magic is incorrect, the file might be corrupted\n");
+      fprintf(stderr, "It could also be an endianness problem\n");
     }
     kmerHolder* result = initKmer(kmerLength, nBases);
     uint32_t orig;
@@ -140,6 +148,11 @@ kmerHolder* readIn(char* file){
               tIdList* thisPos = newTIdList(pn);
               thisPos->trace.flag   = pflag;
               thisPos->trace.nReads = preads;
+              if (IS(thisPos, FIRST_IN_TRACE)){
+                LISTTYPE from = NOKMER;
+                fread(&from, sizeof(LISTTYPE), 1, fin);
+                thisPos->posInTrace = newTIdList(from);
+              }
               if (posPtr){
                 posPtr->next = thisPos;
                 posPtr = posPtr->next;

@@ -4,23 +4,24 @@
 #include "mydmacros.h"
 
 
-typedef struct kC{
+typedef struct kmerConnector{
   uint32_t dest;
   uint32_t uid;  // For debugging purposes, may lose later
   uint16_t n; // Number of events supporting connection
   uint8_t flags; // Connector-specific flags (in_use, ...)
   tIdList* idflags; // Info about each trace (id, isFirst, isLast, inUse...)
-  struct kC* next; // Another kC, same from, different dest
+  struct kmerConnector* next; // Another kC, same from, different dest
 } kmerConnector;
 
 
 
-typedef struct mll{
+typedef struct kcLL{
   kmerConnector* kc;
   LISTTYPE ntid;
   LISTTYPE posInTrace;
-  struct mll* next;
-  struct mll* last;
+  LISTTYPE from;
+  struct kcLL* next;
+  struct kcLL* last;
 } kcLL;
 
 
@@ -43,7 +44,7 @@ void resetKcLL(kcLL** llp){
   llp = NULL;
 }
 
-kcLL* newKcPointer(kmerConnector** newkcp, LISTTYPE ntid, LISTTYPE pos){
+kcLL* newKcPointer(kmerConnector** newkcp, LISTTYPE ntid, LISTTYPE pos, LISTTYPE from){
   kmerConnector* newkc = *newkcp;
   kcLL* result = (kcLL*) calloc(1, sizeof(kcLL));
   result->kc = newkc;
@@ -51,20 +52,21 @@ kcLL* newKcPointer(kmerConnector** newkcp, LISTTYPE ntid, LISTTYPE pos){
   result->ntid = ntid;
   result->posInTrace = pos;
   result->last = result;
+  result->from = from;
   return result;
 }
 
 
-void kcpush (kcLL** llp, kmerConnector** newkcp, LISTTYPE ntid, LISTTYPE pos){
+void kcpush (kcLL** llp, kmerConnector** newkcp, LISTTYPE ntid, LISTTYPE pos, LISTTYPE from){
   kcLL* ll = *llp;
   if (ll){
     kcLL* tmp = ll->last;
     if (!ll->last) tmp = ll;
-    tmp->next = newKcPointer(newkcp, ntid, pos);
+    tmp->next = newKcPointer(newkcp, ntid, pos, from);
     ll->last = tmp->next;
   }
   else{
-    ll = newKcPointer(newkcp, ntid, pos);
+    ll = newKcPointer(newkcp, ntid, pos, from);
     ll->last = ll;
   }
   *llp = ll;
@@ -76,7 +78,7 @@ kcLL* kcCopy(kcLL** kclp){
   if (kcl){
     //uint32_t pos = kcl->posInTrace;
     while (kcl){
-      kcpush(&result, &kcl->kc, kcl->ntid, kcl->posInTrace);
+      kcpush(&result, &kcl->kc, kcl->ntid, kcl->posInTrace, kcl->from);
       kcl = kcl->next;
     }
     //result->posInTrace = pos;
