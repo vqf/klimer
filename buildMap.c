@@ -41,7 +41,7 @@ int main(int argc,char** argv){
     }
   }
   writeOut(&kh, outfile);
-  //summarize(kh->ms);
+  E_(2, summarize(kh->ms);)
   destroySeqReader(&sf);
   free(outfile);
   destroyKh(&kh);

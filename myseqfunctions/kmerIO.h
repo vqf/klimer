@@ -50,6 +50,7 @@ uint8_t writeOut(kmerHolder** khp, char* fname){
           fwrite(&i, sizeof(uint32_t), 1, fout);
           D_(2, "...to %lu\n", (LUI) kc->dest);
           fwrite(&kc->dest, sizeof(uint32_t), 1, fout);
+          fwrite(&kc->n, sizeof(uint16_t), 1, fout);
           uint32_t lid = tIdListLength(&kc->idflags);
           D_(2, "Has %lu traces\n", (LUI) lid);
           fwrite(&lid, sizeof(uint32_t), 1, fout);
@@ -100,8 +101,8 @@ kmerHolder* readIn(char* file){
       fprintf(stderr, "Your magic is incorrect, the file might be corrupted\n");
     }
     kmerHolder* result = initKmer(kmerLength, nBases);
-    uint32_t orig;
-    uint32_t dest;
+    uint32_t orig = 0;
+    uint32_t dest = 0;
     uint32_t iSize = 0;  // idList size
     uint32_t lSize = 0;  // loop size
     size_t success = fread(&orig, sizeof(uint32_t), 1, fin);
@@ -110,6 +111,7 @@ kmerHolder* readIn(char* file){
       D_(2, "Reading kc from %lu to %lu\n", (LUI) orig, (LUI) dest);
       uint32_t totalReads = 0;
       kmerConnector* thisKc = getConnector(&result->ms, orig, dest);
+      fread(&thisKc->n, sizeof(uint16_t), 1, fin);
       tIdList* idPtr = thisKc->idflags;
       uint32_t i = 0;
       if (fread(&iSize, sizeof(uint32_t), 1, fin)){
@@ -160,7 +162,7 @@ kmerHolder* readIn(char* file){
           }
         }
       }
-      thisKc->n = totalReads;
+      //thisKc->n = totalReads;
       success = fread(&orig, sizeof(uint32_t), 1, fin);
       success = fread(&dest, sizeof(uint32_t), 1, fin);
     }

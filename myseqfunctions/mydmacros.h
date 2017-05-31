@@ -21,7 +21,7 @@ typedef enum { false, true } bool;
 #define E_(a, b) if (DEBUG >= a){ printf("At %d: ", __LINE__); b; }
 #define P_(a) printf("%s at %d: %p\n", #a, __LINE__, a);
 #define X_ printf("\n=====\nExit at %d\n====\n", __LINE__); exit(0);
-#define DIE(a) printf("%s\n", a); printf("File %s, line %d\n", __FILE__, __LINE__); exit(0);
+#define DIE(...) printf(__VA_ARGS__); printf("File %s, line %d\n", __FILE__, __LINE__); exit(0);
 
 #define SCALAR(a, b) _CTR = 1; \
                   while (a->next){\

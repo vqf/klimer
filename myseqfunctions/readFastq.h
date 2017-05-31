@@ -111,6 +111,7 @@ bool getNextFqRead(fastqReader** fqp){
       myfgets(&fq->fp, &fq->quals,     MAXREAD)){
     result = true;
   }
+  //D_(1, "Reading %s\n", fq->seqName);
   _resetFq(&fq);
   return result;
 }

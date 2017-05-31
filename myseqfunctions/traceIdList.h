@@ -690,6 +690,8 @@ typedef struct tSet{
   LISTTYPE traceId;
   LISTTYPE startingPos; // Where each trace starts
   LISTTYPE currentPos;
+  LISTTYPE prevKmer; // Make sure prev kmer is coincident. Only important at the first read
+                     // (afterwards it is guaranteed).
   LISTTYPE upShift; // If type is 1 or 3, how many kcs until we reach the first existing one
   LISTTYPE dnShift; // If type is 2 or 3, how many kcs until we reach the last existing one
   bool conflict;    // More than one upShift is possible

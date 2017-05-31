@@ -11,6 +11,7 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
+#include <inttypes.h>
 #include "neatHtml.h"
 #include "traceIdList.h"
 #include "seqCollection.h"
@@ -18,6 +19,7 @@
 #define KMERBUFFERSIZE 0xFFFF
 #define NOKMER 0xFFFFFFFF
 #define LUI long unsigned int
+#define HISTMAX 0xFFFFF
 
 #ifndef BOOL
 #define BOOL
@@ -101,6 +103,7 @@ void printKc(memstruct*);
 void printRead(memstruct*);
 void printKcLL(memstruct*, kcLL*);
 void destroyTIdList(tIdList**);
+kmerConnector* newKmerConnector(uint32_t);
 kmerConnector* getConnector(memstruct**, uint32_t, uint32_t);
 void delConnector(kmerConnector**);
 void cleanTraceStatus(kmerHolder**);
@@ -246,14 +249,16 @@ void destroyKh(kmerHolder** khp){
   free(*khp);
 }
 
-bool isBase (memstruct* ms, char* b){
+bool isBase (memstruct** msp, char* b){
+  memstruct* ms = *msp;
   uint8_t val = ms->bi->baseVal[(uint8_t) b[0]];
   bool result = false;
   if (val >= 0 && val < ms->bi->nbases) result = true;
   return result;
 }
 
-uint8_t base (memstruct* ms, char* b){
+uint8_t base (memstruct** msp, char* b){
+  memstruct* ms = *msp;
   uint8_t result = (uint8_t) ms->bi->baseVal[(uint8_t) b[0]];
   return result;
 }
@@ -280,13 +285,9 @@ void setKmerArray(kmerHolder** kp, uint8_t wlength){
   cleanTraceStatus(kp);
   uint32_t nb = sizeof(kmerConnector) * ms->nPos;
   ms->nBytes = nb;
-  if (DEBUG){
-    fprintf(stderr, "Allocating %lu bytes...\n", (long unsigned int) nb);
-  }
+  D_(1, "Allocating %lu bytes...\n", (long unsigned int) nb);
   ms->kmerArray = (kmerConnector**) calloc(ms->nPos, sizeof(kmerConnector*));
-  if (DEBUG){
-    fprintf(stderr, "Done\n");
-  }
+  D_(1, "Done\n");
 }
 
 uint32_t seq2pos (memstruct* ms, char* seq){
@@ -298,9 +299,9 @@ uint32_t seq2pos (memstruct* ms, char* seq){
   uint16_t i;
   for (i = 0; i < sl; i++){
     char* tb = seq + i;
-    if (isBase(ms, tb)){
+    if (isBase(&ms, tb)){
       if (pos == NOKMER) pos = 0;
-      pos = ms->bi->nbases * pos + base(ms, tb);
+      pos = ms->bi->nbases * pos + base(&ms, tb);
     }
     else{
       fprintf(stderr, "Unknown base %s\n", tb);
@@ -340,12 +341,39 @@ uint16_t getVal(memstruct* ms, char* kmer){
  */
 void addCount(kmerHolder** kp, uint32_t pos){
   memstruct *ms = (*kp)->ms;
+  kmerConnector* result = ms->kmerArray[pos];
   if (pos < 0 || pos > ms->nPos){
     //fprintf(stderr, "Too much\n");
     return;
   }
-  //fprintf(stderr, "Add to %lu\n", (long unsigned int) pos);
-  if (ms->kmerArray[pos]->n <= 0xFFFF) ms->kmerArray[pos]->n++;
+  if (result){
+    if (result->n <= 0xFFFF) result->n++;
+  }
+  else{
+    ms->kmerArray[pos] = newKmerConnector(0);
+    ms->kmerArray[pos]->n++;
+  }
+}
+
+void printHistogram (kmerHolder** khp){
+  kmerHolder* kh = *khp;
+  memstruct* ms = kh->ms;
+  uint16_t hmax = 0;
+  uint32_t* hist = (uint32_t*) calloc(HISTMAX, sizeof(uint32_t));
+  for (uint32_t i = 0; i < ms->nPos; i++){
+    kmerConnector* kc = ms->kmerArray[i];
+    if (kc){
+      uint16_t n = kc->n;
+      if (n < HISTMAX){
+        if (n > hmax) hmax = n;
+        hist[n]++;
+      }
+    }
+  }
+  for (uint32_t i = 1; i <= hmax; i++){
+    printf("%" PRIu32 "\t%" PRIu32 "\n", i, hist[i]);
+  }
+  free(hist);
 }
 
 /*
@@ -356,9 +384,7 @@ void addCount(kmerHolder** kp, uint32_t pos){
 void nextId(memstruct** msp){
   memstruct* ms = *msp;
   if (ms->status->cId == MAXLISTTYPE){
-    if (DEBUG){
-      fprintf(stderr, "%s\n", "Overflow in cId");
-    }
+    D_(0, "%s\n", "Overflow in cId");
     return;
   }
   ms->status->cId++;
@@ -733,7 +759,7 @@ LISTTYPE _getLastPos(tIdList** lp){
   return result;
 }
 
-void _existingTrace(memstruct** msp, kmerConnector** kcp){
+void _existingTrace(memstruct** msp, kmerConnector** kcp, uint32_t from){
   memstruct* ms = *msp;
   kmerConnector* kc = *kcp;
   ms->status->posInRead++;
@@ -815,7 +841,7 @@ kmerConnector* getConnector(memstruct** msp, uint32_t from, uint32_t to){
     D_(2, "This is a new one\n");
     ms->kmerArray[from] = newKmerConnector(to);
     result = ms->kmerArray[from];
-    _existingTrace(msp, &result);
+    _existingTrace(msp, &result, from);
   }
   else{
     while (result->dest != to && result->next){
@@ -823,14 +849,14 @@ kmerConnector* getConnector(memstruct** msp, uint32_t from, uint32_t to){
     }
     if (result->dest == to){
       D_(2, "Oh, you mean this one\n");
-      _existingTrace(msp, &result);
+      _existingTrace(msp, &result, from);
     }
     else{ // This connector did not exist
       kmerConnector* nkc = newKmerConnector(to);
       result->next = nkc;
       result = result->next;
       D_(2, "New destination\n");
-      _existingTrace(msp, &result);
+      _existingTrace(msp, &result, from);
     }
   }
   //ms->status->cId = maxInList(ms->status->traceSet);
@@ -972,9 +998,9 @@ void resetKmer(kmerHolder** kp){
 uint32_t updateKmer(kmerHolder** kp, char* b, void (*callback)(kmerHolder**, uint32_t)){
   kmerHolder* k = *kp;
   uint32_t result = NOKMER;
-  uint8_t baseVal = base(k->ms, b);
+  uint8_t baseVal = base(&k->ms, b);
   D_(2, "Base %c, val %u\n", (int) b[0], baseVal);
-  if (!isBase(k->ms, b)){
+  if (!isBase(&k->ms, b)){
     D_(2, "Non-standard base %d\n", (int) b[0]);
     if (b[0] > 0x30) resetTrace(kp);
     return NOKMER;
@@ -1030,6 +1056,50 @@ kmerHolder* initKmer(uint8_t kmerSize, uint8_t nBases){
   result->cVal = 0;
   result->canonic = false;
   return result;
+}
+
+void mergeKh(kmerHolder** khp1, kmerHolder** khp2){
+  //TODO: merge idflags
+  kmerHolder* kh1 = *khp1;
+  memstruct* ms1 = kh1->ms;
+  kmerHolder* kh2 = *khp2;
+  if (kh1->kmerSize != kh2->kmerSize){
+    D_(0, "Incompatible kmerHolders\n");
+    return;
+  }
+  for (uint32_t i = 0; i < kh2->ms->nPos; i++){
+    kmerConnector* kc2 = kh2->ms->kmerArray[i];
+    while (kc2){
+      uint32_t from = i;
+      uint32_t to = kc2->dest;
+      kmerConnector* kc1 = getConnector(&ms1, from, to);
+      kc1->flags = kc1->flags | kc2->flags;
+      kc1->n += kc2->n;
+      kc2 = kc2->next;
+    }
+  }
+}
+
+void filterMergeKh(kmerHolder** khp1, kmerHolder** khp2, uint16_t filter){
+  //TODO: merge idflags
+  kmerHolder* kh1 = *khp1;
+  memstruct* ms1 = kh1->ms;
+  kmerHolder* kh2 = *khp2;
+  if (kh1->kmerSize != kh2->kmerSize){
+    D_(0, "Incompatible kmerHolders\n");
+    return;
+  }
+  for (uint32_t i = 0; i < kh2->ms->nPos; i++){
+    kmerConnector* kc2 = kh2->ms->kmerArray[i];
+    while (kc2 && kc2->n < filter){
+      uint32_t from = i;
+      uint32_t to = kc2->dest;
+      kmerConnector* kc1 = getConnector(&ms1, from, to);
+      kc1->flags = kc1->flags | kc2->flags;
+      kc1->n += kc2->n;
+      kc2 = kc2->next;
+    }
+  }
 }
 
 
@@ -1115,6 +1185,7 @@ void _canonizeThis(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i){
       tIdList* idptr = _getTrace(&kcptr->idflags, i, cPos);
       if (idptr){
         traceVessel* firsts = traceFirst(&idptr);
+        traceVessel* todel = firsts;
         E_(2, printTraceLL((traceLL*) firsts));
         while (firsts && firsts->tidl){
           traceVessel* nxt = firsts->next;
@@ -1125,7 +1196,7 @@ void _canonizeThis(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i){
           }
           firsts = nxt;
         }
-        destroyTraceVessel(&firsts);
+        destroyTraceVessel(&todel);
       }
     }
     kcptr = nextKc(&ms, &kcptr, i, cPos);
