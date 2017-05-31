@@ -607,6 +607,7 @@ void resetTrace(kmerHolder** kp){
       if (!eachTSet->conflict){
         tmp = ms->status->trace;
         LISTTYPE cId = eachTSet->traceId;
+        LISTTYPE posInRead = 1; // Only used for type 2 and 3
         if (eachTSet->type == 0){
           LISTTYPE nId = eachTSet->traceId;
           cposInTrace = eachTSet->startingPos;
@@ -618,7 +619,8 @@ void resetTrace(kmerHolder** kp){
             tmp = tmp->next;
           }
         }
-        else if (eachTSet->type == 1 || eachTSet->type == 3){ // Extending up
+        cposInTrace = eachTSet->startingPos;
+        if (eachTSet->type == 1 || eachTSet->type == 3){ // Extending up
           LISTTYPE counter = 1;
           while (counter < eachTSet->upShift){
             counter++;
@@ -640,22 +642,15 @@ void resetTrace(kmerHolder** kp){
             tIdList* tl = addTrace(&tmp->kc->idflags, cId);
             addPosInTrace(&tl, cposInTrace);
             cposInTrace++;
+            posInRead++;
             tmp = tmp->next;
           }
           setAsFirst(&ms->status->trace->kc->idflags, cId, 1);
           if (eachTSet->type == 3){
-            while(tmp){
-              tIdList* tl = addTrace(&tmp->kc->idflags, cId);
-              addPosInTrace(&tl, cposInTrace);
-              cposInTrace++;
-              tmp = tmp->next;
-            }
-            setAsLast(&ms->status->trace->last->kc->idflags, cId, cposInTrace - 1);
+            eachTSet->type = 2; //Defer to type 2
           }
         }
-        else if (eachTSet->type == 2){
-          cposInTrace = eachTSet->startingPos;
-          LISTTYPE posInRead = 1;
+        if (eachTSet->type == 2){
           while(posInRead < eachTSet->dnShift){
             tIdList* tl = addTrace(&tmp->kc->idflags, cId);
             addPosInTrace(&tl, cposInTrace);
