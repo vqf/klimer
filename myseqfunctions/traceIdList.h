@@ -4,7 +4,8 @@
 #include "mydmacros.h"
 
 // Trace flags
-#define RESERVED       0x80
+#define DELME          0x80
+#define RESERVED       0x10
 #define FIRST_IN_TRACE 0x08
 #define LAST_IN_TRACE  0x04
 #define CIRCULAR       0x02
@@ -253,6 +254,7 @@ tIdList* isInTIdList(tIdList** arrp, LISTTYPE val){
 
 void delTIdFromList(tIdList** parr, LISTTYPE val, LISTTYPE pos){
   tIdList* arr = *parr;
+  if (!arr) return;
   tIdList* todel = NULL;
   if (pos > 0){
     tIdList* el = isInTIdList(parr, val);
@@ -487,8 +489,8 @@ traceVessel* traceFirst(tIdList** tp){
   while (tmp){
     if (IS(tmp, FIRST_IN_TRACE)){
       if (tmp->posInTrace && tmp->posInTrace->trace.n > 1){
-        D_(0, "First in trace, but first posInTrace is %lu\n", (long unsigned) tmp->posInTrace->trace.n);
-        D_(0, "Will try to continue...\n");
+        D_(2, "First in trace, but first posInTrace is %lu\n", (long unsigned) tmp->posInTrace->trace.n);
+        D_(2, "If canonizing, this is not important. Will try to continue...\n");
         UNSET(tmp, FIRST_IN_TRACE);
       }
       else{
