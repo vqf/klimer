@@ -676,8 +676,8 @@ void resetTrace(kmerHolder** kp){
           }
           setAsLast(&ms->status->trace->last->kc->idflags, cId, cposInTrace - 1);
         }
-        else{
-          D_(0, "At this point, type must be 0, 1, 2 or 3\n");
+        if (eachTSet->type > 3){
+          D_(0, "At this point, type must be 0, 1, 2 or 3, not %u\n", eachTSet->type);
           X_;
         }
         // finish it
