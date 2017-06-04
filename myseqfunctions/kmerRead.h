@@ -55,23 +55,22 @@ kcLL* nextTrace(kmerHolder** khp){
   while (i < ms->nPos){
     kmerConnector* kc = ms->kmerArray[i];
     while (kc && kc->n > 0){
-      tIdList* l = kc->idflags;
+      traceVessel* l = traceFirst(&kc->idflags);
       while (l){
-        if (IS(l, FIRST_IN_TRACE)){
-          tIdList* start = isInTIdList(&l->posInTrace, 1);
-          if (!IS(start, IN_USE)){
-            SET(start, IN_USE);
-            kcpush(&result, &kc, l->trace.n, 0);
-            result->posInTrace = i;
-            D_(2, "Found starting trace at %lu\n", (LUI) i);
-            ms->status->current = i;
-            kcLL* f = followTrace(khp, i, l->trace.n, 1);
-            result->next = f;
-            return result;
-          }
+        tIdList* start = l->tidl;
+        if (!IS(start, IN_USE)){
+          SET(start, IN_USE);
+          kcpush(&result, &kc, start->trace.n, 0);
+          result->posInTrace = i;
+          D_(1, "Found starting trace at %lu\n", (LUI) i);
+          ms->status->current = i;
+          kcLL* f = followTrace(khp, i, start->trace.n, 1);
+          result->next = f;
+          return result;
         }
         l = l->next;
       }
+      destroyTraceVessel(&l);
       kc = kc->next;
     }
     i++;

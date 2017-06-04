@@ -420,7 +420,7 @@ kmerConnector* getKcWithTId(memstruct** msp, uint32_t pos, LISTTYPE tid, LISTTYP
     tIdList* tt = _getTrace(&kc->idflags, tid, posInTrace);
     if (tt){
       if (result){
-        if (!IS(tt, FIRST_IN_TRACE) && !IS(tt, LAST_IN_TRACE)){
+        if (!isFirst(&tt) && !isLast(&tt)){
           D_(0, "Conflict resolved by not first or last in trace\n");
           char* one = (char*) calloc(200, sizeof(char));
           char* two = (char*) calloc(200, sizeof(char));
@@ -629,6 +629,8 @@ void resetTrace(kmerHolder** kp){
           tIdList* fst = _getTrace(&tmp->kc->idflags, cId, 1);
           if (!fst){
             D_(0, "Warning: There should be a starting trace here, but I cannot find it\n");
+            printTIdList(tmp->kc->idflags);
+            X_
           }
           if (IS(fst, FIRST_IN_TRACE)){
             unsetAsFirst(&fst, cId, 1);
@@ -813,7 +815,7 @@ void _existingTrace(memstruct** msp, kmerConnector** kcp, uint32_t from){
           dPos = dPos->next;
         }
       }
-      else if (IS(eachTrace, FIRST_IN_TRACE)){
+      else if (isFirst(&eachTrace)){
         D_(2, "Might extend up trace %lu\n", (LUI) eachTrace->trace.n);
         unshiftTSet(&ms->status->traceSet, eachTrace->trace.n, 1);
         ms->status->traceSet->type = 1;
@@ -1184,6 +1186,11 @@ void _consolidate(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i, LISTTYPE n,
       while (tmp){
         if (tmp->kc){
           delTIdFromList(&tmp->kc->idflags, tmp->ntid, 0);
+          if (!tmp->kc->idflags){
+            D_(0, "Error in the canonization:\n");
+            char seq[200];
+            E_(0, printKmerConnector(tmp->kc, seq));
+          }
         }
         tmp = tmp->next;
       }
@@ -1207,7 +1214,8 @@ void _canonizeThis(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i){
         E_(2, printTraceLL((traceLL*) firsts));
         while (firsts && firsts->tidl){
           traceVessel* nxt = firsts->next;
-          if (firsts->tidl->trace.n > i){
+          if (!IS(firsts->tidl, IN_USE)){
+            SET(firsts->tidl, IN_USE);
             D_(1, "Canonizing trace %lu with trace %lu\n", (LUI) i, (LUI) firsts->tidl->trace.n);
             _canonizeThis(khp, &kcptr, firsts->tidl->trace.n);
             _consolidate(khp, &kcptr, i, firsts->tidl->trace.n, cPos);
@@ -1228,13 +1236,30 @@ void _canonize(kmerHolder** khp){
   memstruct* ms  = kh->ms;
   uint32_t i = 0;//ms->status->current;
   // First pass
+  D_(1, "Starting canonization\n");
   for (i = 0; i < ms->nPos; i++){
     kmerConnector* kc = ms->kmerArray[i];
     while (kc && kc->n > 0){
       tIdList* l = kc->idflags;
       while (l){
-        if (IS(l, FIRST_IN_TRACE) && !IS(l, DELME)){
+        if (isFirst(&l)){
           _canonizeThis(khp, &kc, l->trace.n);
+        }
+        l = l->next;
+      }
+      kc = kc->next;
+    }
+  }
+  //Unset IN_USE
+  D_(1, "Unset in_use flag\n");
+  for (i = 0; i < ms->nPos; i++){
+    kmerConnector* kc = ms->kmerArray[i];
+    while (kc && kc->n > 0){
+      tIdList* l = kc->idflags;
+      while (l){
+        D_(2, "Unsetting in_use for trace %lu\n", (LUI) l->trace.n);
+        if (IS(l, IN_USE)){
+          UNSET(l, IN_USE);
         }
         l = l->next;
       }

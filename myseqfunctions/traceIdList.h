@@ -17,7 +17,7 @@
 // b -> flag to operate
 
 #define SET(a, b) (((a)->trace.flag = (a)->trace.flag | b))
-#define UNSET(a, b) ((a)->trace.flag = (a)->trace.flag ^ b)
+#define UNSET(a, b) ((a)->trace.flag = (a)->trace.flag & ~b)
 #define IS(a, b) ((a)->trace.flag & b)
 
 
@@ -434,69 +434,46 @@ void pushTraceInVessel(traceVessel** tvp, tIdList** tp){
   ptr->tidl = *tp;
 }
 
+bool isFirst(tIdList** t){
+  bool result = false;
+  tIdList* fpos = (*t)->posInTrace;
+  if (IS(fpos, FIRST_IN_TRACE)){
+    result = true;
+    if (fpos->trace.n != 1) D_(0, "First in trace, but not first: %lu\n", (LUI) fpos->trace.n);
+  }
+  return result;
+}
+
+bool isLast(tIdList** t){
+  bool result = false;
+  tIdList* lpos = (*t)->posInTrace;
+  while (lpos->next){
+    lpos = lpos->next;
+  }
+  if (IS(lpos, LAST_IN_TRACE)) result = true;
+  return result;
+}
+
+
 traceVessel* traceLast(tIdList** tp){
   tIdList* t = *tp;
   traceVessel* result = NULL;
   tIdList* tmp = t;
   while (tmp){
-    if (IS(tmp, LAST_IN_TRACE)){
-      pushTraceInVessel(&result, &tmp);
-    }
+    if (isLast(&tmp)) pushTraceInVessel(&result, &tmp);
     tmp = tmp->next;
   }
   //E_(2, printTIdList(result); printf("\n"););
   return result;
 }
 
-bool isTraceFirst(tIdList** t, tIdList* which){
-  if (!t || !which) return false;
-  bool result = true;
-  traceVessel* tmpor = _getTraces(t, which);
-  traceVessel* tmp = tmpor;
-  while (tmp && tmp->tidl){
-    if (!IS(tmp->tidl, FIRST_IN_TRACE)){
-      result = false;
-      destroyTraceVessel(&tmpor);
-      return result;
-    }
-    tmp = tmp->next;
-  }
-  destroyTraceVessel(&tmpor);
-  return result;
-}
-
-bool isTraceLast(tIdList** t, tIdList* which){
-  if (!t || !which) return false;
-  bool result = true;
-  traceVessel* tmpor = _getTraces(t, which);
-  traceVessel* tmp = tmpor;
-  while (tmp && tmp->tidl){
-    if (!IS(tmp->tidl, LAST_IN_TRACE)){
-      result = false;
-      destroyTraceVessel(&tmpor);
-      return result;
-    }
-    tmp = tmp->next;
-  }
-  destroyTraceVessel(&tmpor);
-  return result;
-}
 
 traceVessel* traceFirst(tIdList** tp){
   tIdList* t = *tp;
   traceVessel* result = NULL;
   tIdList* tmp = t;
   while (tmp){
-    if (IS(tmp, FIRST_IN_TRACE)){
-      if (tmp->posInTrace && tmp->posInTrace->trace.n > 1){
-        D_(2, "First in trace, but first posInTrace is %lu\n", (long unsigned) tmp->posInTrace->trace.n);
-        D_(2, "If canonizing, this is not important. Will try to continue...\n");
-        UNSET(tmp, FIRST_IN_TRACE);
-      }
-      else{
-        pushTraceInVessel(&result, &tmp);
-      }
-    }
+    if (isFirst(&tmp)) pushTraceInVessel(&result, &tmp);
     tmp = tmp->next;
   }
   //E_(2, printTIdList(result); printf("\n"););
@@ -561,43 +538,6 @@ traceVessel* _getTraces(tIdList** tp, tIdList* which){
 }
 
 
-bool isFirst(tIdList** t, tIdList* which){
-  if (!which) return false;
-  bool result = false;
-  traceVessel* tmp = _getTraces(t, which);
-  traceVessel* ptr = tmp;
-  while (ptr->tidl){
-    if (IS(ptr->tidl, FIRST_IN_TRACE)){
-      result = true;
-    }
-    else{
-      destroyTraceVessel(&tmp);
-      return false;
-    }
-    ptr = ptr->next;
-  }
-  destroyTraceVessel(&tmp);
-  return result;
-}
-
-bool isLast(tIdList** t, tIdList* which){
-  if (!which) return false;
-  bool result = false;
-  traceVessel* tmp = _getTraces(t, which);
-  traceVessel* ptr = tmp;
-  while (ptr->tidl){
-    if (IS(ptr->tidl, LAST_IN_TRACE)){
-      result = true;
-    }
-    else{
-      destroyTraceVessel(&tmp);
-      return false;
-    }
-    ptr = ptr->next;
-  }
-  destroyTraceVessel(&tmp);
-  return result;
-}
 
 void setAsFirst (tIdList** t, LISTTYPE id, LISTTYPE pos){
   tIdList* tmp = _getTrace(t, id, pos);
@@ -667,7 +607,7 @@ void unsetAsFirst (tIdList** t, LISTTYPE id, LISTTYPE pos){
     UNSET(tmpos, FIRST_IN_TRACE);
   }
   else{
-    D_(0, "Cannot find last in trace\n");
+    D_(0, "Cannot find first in trace\n");
   }
 }
 
