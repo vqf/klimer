@@ -258,9 +258,11 @@ void delTIdFromList(tIdList** parr, LISTTYPE val, LISTTYPE pos){
   tIdList* todel = NULL;
   if (pos > 0){
     tIdList* el = isInTIdList(parr, val);
-    delTIdFromList(&el->posInTrace, pos, 0);
-    if (!el->posInTrace){
-      delTIdFromList(parr, val, 0);
+    if (el){
+      delTIdFromList(&el->posInTrace, pos, 0);
+      if (!el->posInTrace){
+        delTIdFromList(parr, val, 0);
+      }
     }
   }
   else{
@@ -440,6 +442,19 @@ bool isFirst(tIdList** t){
   if (IS(fpos, FIRST_IN_TRACE)){
     result = true;
     if (fpos->trace.n != 1) D_(0, "First in trace, but not first: %lu\n", (LUI) fpos->trace.n);
+  }
+  return result;
+}
+
+bool isPosLast(tIdList** tp, LISTTYPE pos){
+  // Is pos in tp last in trace?
+  bool result = false;
+  tIdList* p = (*tp)->posInTrace;
+  while (p->next){
+    p = p->next;
+  }
+  if (p->trace.n == pos && IS(p, LAST_IN_TRACE)){
+    result = true;
   }
   return result;
 }

@@ -36,7 +36,7 @@ int main(int argc,char** argv){
     if (counter >= TELLUSEREVERY){
       counter = 0;
       time_t now = time(NULL);
-      _canonize(&kh);
+      //_canonize(&kh);
       D_(0, "%d sequences in %ld seconds\n", nseq, now-start);
     }
   }
