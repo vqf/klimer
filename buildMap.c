@@ -45,5 +45,7 @@ int main(int argc,char** argv){
   destroySeqReader(&sf);
   free(outfile);
   destroyKh(&kh);
+  time_t now = time(NULL);
+  D_(0, "Done in %ld seconds\n", now-start);
   return 0;
 }
