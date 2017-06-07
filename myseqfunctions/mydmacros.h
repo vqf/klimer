@@ -1,6 +1,8 @@
 #ifndef MYDMACROS_H_INCLUDED
 #define MYDMACROS_H_INCLUDED
 
+#include <signal.h>
+
 #ifndef LUI
 #define LUI long unsigned int
 #endif /* BOOL */

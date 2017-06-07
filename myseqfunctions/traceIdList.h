@@ -500,18 +500,18 @@ traceVessel* traceFirst(tIdList** tp){
 
 tIdList* _getTrace(tIdList** tp, LISTTYPE i, LISTTYPE pos){
   tIdList* tmp = *tp;
-  while (tmp && tmp->trace.n <= i){
-    if (tmp->trace.n == i){
-      if (!pos) return tmp;
-      tIdList* intmp = tmp->posInTrace;
-      while (intmp && intmp->trace.n <= pos){
-        if (intmp->trace.n == pos){
-          return tmp;
-        }
-        intmp = intmp->next;
-      }
-    }
+  while (tmp && tmp->trace.n < i){
     tmp = tmp->next;
+  }
+  if (tmp && tmp->trace.n == i){
+    if (!pos) return tmp;
+    tIdList* intmp = tmp->posInTrace;
+    while (intmp && intmp->trace.n < pos){
+      intmp = intmp->next;
+    }
+    if (intmp && intmp->trace.n == pos){
+      return tmp;
+    }
   }
   return NULL;
 }

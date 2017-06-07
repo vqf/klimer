@@ -11,7 +11,7 @@
 	<stdint.h>
 	<time.h>
 
-1496837438 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
+1496867476 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
 	<stdint.h>
 	<stdio.h>
 	<stdlib.h>
@@ -25,15 +25,15 @@
 
 1474482015 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\neathtml.h
 
-1496834136 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\traceidlist.h
+1496859356 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\traceidlist.h
 	"mydmacros.h"
 
-1496829263 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerio.h
+1496852248 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerio.h
 	"kmer.h"
 
 1485629211 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\debugfileio.h
 
-1496835198 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerread.h
+1496866325 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerread.h
 	"kmer.h"
 	"traceIdList.h"
 	"stdio.h"
@@ -61,7 +61,8 @@
 	"mydmacros.h"
 	"IOLayer.h"
 
-1496835658 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\mydmacros.h
+1496864466 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\mydmacros.h
+	<signal.h>
 
 1487331485 source:c:\users\vqf\documents\cpp\klimer_project\github\comparemaps.c
 	<stdio.h>

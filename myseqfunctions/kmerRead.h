@@ -186,4 +186,5 @@ void printSeqCollection(kmerHolder** khp, seqCollection** scp){
   }
 }
 
+
 #endif // KMERREAD_H_INCLUDED
