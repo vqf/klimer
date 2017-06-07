@@ -5,6 +5,7 @@
 
 // Trace flags
 #define DELME          0x80
+#define CANON          0x40
 #define RESERVED       0x10
 #define FIRST_IN_TRACE 0x08
 #define LAST_IN_TRACE  0x04
@@ -242,11 +243,11 @@ void mergeTIdLists(tIdList** l1p, tIdList* l2){
 tIdList* isInTIdList(tIdList** arrp, LISTTYPE val){
   tIdList *arr = *arrp;
   tIdList* result = NULL;
-  while (!result && arr){
-    if (arr->trace.n == val){
-      result = arr;
-    }
+  while (!result && arr && arr->trace.n < val){
     arr = arr->next;
+  }
+  if (arr && arr->trace.n == val){
+    result = arr;
   }
   return result;
 }
@@ -499,13 +500,31 @@ traceVessel* traceFirst(tIdList** tp){
 
 tIdList* _getTrace(tIdList** tp, LISTTYPE i, LISTTYPE pos){
   tIdList* tmp = *tp;
-  while (tmp){
+  while (tmp && tmp->trace.n <= i){
     if (tmp->trace.n == i){
       if (!pos) return tmp;
       tIdList* intmp = tmp->posInTrace;
-      while (intmp){
-        if (!pos || intmp->trace.n == pos){
+      while (intmp && intmp->trace.n <= pos){
+        if (intmp->trace.n == pos){
           return tmp;
+        }
+        intmp = intmp->next;
+      }
+    }
+    tmp = tmp->next;
+  }
+  return NULL;
+}
+
+tIdList* _getPos(tIdList** tp, LISTTYPE i, LISTTYPE pos){
+  // Like _getTrace, but returns pos instead of trace
+  tIdList* tmp = *tp;
+  while (tmp && tmp->trace.n <= i){
+    if (tmp->trace.n == i){
+      tIdList* intmp = tmp->posInTrace;
+      while (intmp && intmp->trace.n <= pos){
+        if (intmp->trace.n == pos){
+          return intmp;
         }
         intmp = intmp->next;
       }

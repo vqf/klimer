@@ -5,7 +5,7 @@
 #include "myseqfunctions/readSeqFiles.h"
 
 #define KMERLENGTH 11
-#define TELLUSEREVERY 15000
+#define TELLUSEREVERY 5000
 
 int main(int argc,char** argv){
   if (argc < 2){
@@ -36,7 +36,7 @@ int main(int argc,char** argv){
     if (counter >= TELLUSEREVERY){
       counter = 0;
       time_t now = time(NULL);
-      _canonize(&kh);
+      //_canonize(&kh);
       D_(0, "%d sequences in %ld seconds\n", nseq, now-start);
     }
   }
