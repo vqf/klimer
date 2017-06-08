@@ -6,7 +6,7 @@
 #include "myseqfunctions/kmerRead.h"
 
 #define KMERLENGTH 11
-#define TELLUSEREVERY 5000
+#define TELLUSEREVERY 10000
 
 int main(int argc,char** argv){
   if (argc < 2){
@@ -37,8 +37,8 @@ int main(int argc,char** argv){
     if (counter >= TELLUSEREVERY){
       counter = 0;
       time_t now = time(NULL);
-      _canonize(&kh);
-      D_(0, "%d sequences in %ld seconds\n", nseq, now-start);
+      //_canonize(&kh);
+      D_(0, "%d\t%ld\n", nseq, now-start);
     }
   }
   writeOut(&kh, outfile);
@@ -48,5 +48,6 @@ int main(int argc,char** argv){
   destroyKh(&kh);
   time_t now = time(NULL);
   D_(0, "Done in %ld seconds\n", now-start);
+  TRACE;
   return 0;
 }

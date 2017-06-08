@@ -25,6 +25,7 @@ bool looksLikeFasta(char* fname){
   bool goon = true;
   fpointer* tmpfp = newFPointer(fname);
   char* line = (char*) calloc(60, sizeof(char));
+  D_(3, "Line: %s\n", line);
   while (goon){
     char* r = myfgets(&tmpfp, &line, 60);
     if (!r) goon = false;

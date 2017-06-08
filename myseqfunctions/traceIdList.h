@@ -39,12 +39,14 @@ typedef struct iarr{
   tId trace;
   struct iarr* posInTrace;
   struct iarr* next;
+  struct iarr* last;
 } tIdList;
 
 
 typedef struct traceLL{
   tIdList* tidl;
   struct traceLL* next;
+  struct traceLL* last;
 } traceLL;
 
 typedef traceLL traceVessel; //TraceVessel only takes pointers and its tidl is
@@ -101,6 +103,7 @@ tIdList* newTIdList(LISTTYPE val){
   result->trace.n = val;
   result->trace.nReads = 0;
   result->next = NULL;
+  result->last = NULL;
   result->posInTrace = NULL;
   return result;
 }
@@ -120,6 +123,7 @@ traceLL* newTraceLL(){
   traceLL* result = (traceLL*) calloc(1, sizeof(traceLL));
   result->tidl = NULL;
   result->next = NULL;
+  result->last = NULL;
   return result;
 }
 
@@ -141,15 +145,18 @@ LISTTYPE maxInList(tIdList* l){
 tIdList* insertInTIdList(tIdList** Iarr, LISTTYPE val){
   if (!*Iarr){
     *Iarr = newTIdList(val);
+    (*Iarr)->last = *Iarr;
     return *Iarr;
   }
   tIdList* arr = *Iarr;
   if (arr){
     tIdList* p = arr;
     if (val < p->trace.n){ //Unshift
+      tIdList* lst = p->last;
       tIdList* nxt = newTIdList(val);
       nxt->next = *Iarr;
       *Iarr = nxt;
+      (*Iarr)->last = lst;
       return nxt;
     }
     else{
@@ -173,6 +180,7 @@ tIdList* insertInTIdList(tIdList** Iarr, LISTTYPE val){
         }
         tIdList* nxt = newTIdList(val);
         p->next = nxt;
+        (*Iarr)->last = p->next;
         return nxt;
       }
     }
@@ -180,6 +188,7 @@ tIdList* insertInTIdList(tIdList** Iarr, LISTTYPE val){
   else{
     arr = newTIdList(val);
     *Iarr = arr;
+    (*Iarr)->last = *Iarr;
     return arr;
   }
 }
@@ -268,8 +277,10 @@ void delTIdFromList(tIdList** parr, LISTTYPE val, LISTTYPE pos){
   }
   else{
     if (arr->trace.n == val){ //Shift
+      tIdList* lst = arr->last;
       todel = arr;
       *parr = arr->next;
+      (*parr)->last = lst;
       todel->next = NULL;
     }
     else if (arr->trace.n < val){
@@ -278,6 +289,9 @@ void delTIdFromList(tIdList** parr, LISTTYPE val, LISTTYPE pos){
       }
       if (arr->next && arr->next->trace.n == val){
         todel = arr->next;
+        if (*parr){
+          (*parr)->last = arr->next->next;
+        }
         arr->next = arr->next->next;
         todel->next = NULL;
       }
@@ -426,15 +440,13 @@ void pushTraceInVessel(traceVessel** tvp, tIdList** tp){
   if (!ptr){
     *tvp = (traceVessel*) newTraceLL();
     ptr = *tvp;
+    (*tvp)->last = *tvp;
   }
   else{
-    while (ptr->next){
-      ptr = ptr->next;
-    }
-    ptr->next = (traceVessel*) newTraceLL();
-    ptr = ptr->next;
+    (*tvp)->last->next = (traceVessel*) newTraceLL();
+    (*tvp)->last = (*tvp)->last->next;
   }
-  ptr->tidl = *tp;
+  (*tvp)->last->tidl = *tp;
 }
 
 bool isFirst(tIdList** t){
@@ -463,10 +475,7 @@ bool isPosLast(tIdList** tp, LISTTYPE pos){
 bool isLast(tIdList** t){
   bool result = false;
   tIdList* lpos = (*t)->posInTrace;
-  while (lpos->next){
-    lpos = lpos->next;
-  }
-  if (IS(lpos, LAST_IN_TRACE)) result = true;
+  if (IS(lpos->last, LAST_IN_TRACE)) result = true;
   return result;
 }
 
