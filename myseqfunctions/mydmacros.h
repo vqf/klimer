@@ -7,10 +7,7 @@
 #define LUI long unsigned int
 #endif /* BOOL */
 
-#ifndef DEBUG
-#define DEBUG 0
-#endif /* DEBUG */
-
+int DEBUG = 0;
 
 #ifndef BOOL
 #define BOOL

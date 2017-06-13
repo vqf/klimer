@@ -593,12 +593,16 @@ void resetTrace(kmerHolder** kp){
             printTIdList(tmp->kc->idflags);
             X_
           }
-          if (IS(fst, FIRST_IN_TRACE)){
+          if (isFirst(&fst)){
             unsetAsFirst(&fst, cId, 1);
             shiftPosInTrace(&ms, &tmp->kc, &fst, eachTSet->upShift - 1);
           }
           else{
-            D_(0, "Warning, there should be a first_in_trace\n");
+            char* s = getTraceSeq(kp, tmpp);
+            printf ("%s\n", s);
+            D_(0, "Warning, there should be a first_in_trace in trace %" PRIu32 \
+               " pos %" PRIu32 "\n", eachTSet->traceId, cposInTrace);
+            printTIdList(tmp->kc->idflags);
           }
           tmp = ms->status->trace;
           while (cposInTrace < eachTSet->upShift){
@@ -625,7 +629,7 @@ void resetTrace(kmerHolder** kp){
           if (!lst){
             D_(0, "Cannot find previous last\n"); X_;
           }
-          if (IS(lst, LAST_IN_TRACE)){
+          if (isLast(&lst)){
             unsetAsLast(&lst, cId, cposInTrace);
           }
           else{
@@ -936,6 +940,47 @@ void summarize (memstruct* ms){
   }
 }
 
+uint32_t nTraces(kmerHolder** khp, bool printAnalysis){
+  kmerHolder* kh = *khp;
+  memstruct* ms = kh->ms;
+  uint32_t MAX = 0xFFFF;
+  uint32_t* nt = (uint32_t*) calloc(MAX, sizeof(uint32_t));
+  uint32_t ntmax = 0;
+  uint32_t result = 0;
+  for (uint32_t i = 0; i < ms->nPos; i++){
+    kmerConnector* kc = ms->kmerArray[i];
+    while (kc){
+      if (kc->idflags){
+        uint32_t nids = tIdListLength(&kc->idflags);
+        if (nids > 300){
+          char* seq = (char*) calloc(20, sizeof(char));
+          pos2seq(&ms, i, seq);
+          fprintf(stdout, "pos %s with %" PRIu32 "\n", seq, nids);
+          free(seq);
+        }
+        else{
+          if (nids > 0) nt[nids]++;
+          if (nids > ntmax) ntmax = nids;
+        }
+      }
+      traceVessel* t = traceFirst(&kc->idflags);
+      if (t){
+        result++;
+        t = t->next;
+      }
+      destroyTraceVessel(&t);
+      kc = kc->next;
+    }
+  }
+  if (printAnalysis){
+    for (uint32_t i = 1; i < ntmax; i++){
+      if (nt[i] > 0) printf("%" PRIu32 "\t%" PRIu32 "\n", i, nt[i]);
+    }
+  }
+  free(nt);
+  return result;
+}
+
 void drawMs (memstruct* ms, char* fname){
   FILE* fp = fopen(fname, "w");
   if (fp){
@@ -1186,6 +1231,7 @@ void _canonizeThis(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
   LISTTYPE cPos = 1;
   kmerConnector* kcptr = kc;
   // Set all in use
+
   setTraceInUse(&ms, kcp, i);
   while(kcptr){
     if (kcptr->idflags){
@@ -1203,12 +1249,12 @@ void _canonizeThis(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
             }
             else{
               D_(2, "Canonizing trace %lu with trace %lu\n", (LUI) i, (LUI) fstptr->tidl->trace.n);
-              /*if (DEBUG >= 1){
+              if (DEBUG >= 1){
                 khDebug = *khp;
                 kcDebug = kc;
-                iDebug  = n;
+                iDebug  = fstptr->tidl->trace.n;
                 posDebug = 1;
-              }*/
+              }
               if (!IS(fstptr->tidl, CANON)){
                 _canonizeThis(khp, &kcptr, fstptr->tidl->trace.n, toDelp);
               }
@@ -1269,6 +1315,7 @@ void _canonize(kmerHolder** khp){
   kcLL* tmp = toDel;
   while (tmp){
     if (tmp->kc){
+      E_(1, printf("%" PRIu32 "\n", tmp->ntid); printTIdList(tmp->kc->idflags); printf("\n");)
       delTIdFromList(&tmp->kc->idflags, tmp->ntid, 0);
     }
     tmp = tmp->next;
