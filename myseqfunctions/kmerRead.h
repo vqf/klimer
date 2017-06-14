@@ -19,13 +19,13 @@ char getLastBase(kmerHolder** khp, uint32_t pos){
 kcLL* followTrace(kmerHolder** khp, uint32_t pos, LISTTYPE tid, LISTTYPE posInTrace){
   kcLL* result = NULL;
   memstruct* ms = (*khp)->ms;
-  kmerConnector* kc = getKcWithTId(&ms, pos, tid, posInTrace);
+  tIdList* thisTrace = NULL;
+  kmerConnector* kc = getKcWithTId(&ms, pos, tid, posInTrace, &thisTrace);
   if (!kc){
     D_(0, "Error at kc %lu, id %lu, pos %lu\n", (LUI) pos, (LUI) tid, (LUI) posInTrace);
     SEQ(&ms, ms->kmerArray[pos]);
     X_;
   }
-  tIdList* thisTrace = _getTrace(&kc->idflags, tid, posInTrace);
   while (kc && !isLastInTrace(&thisTrace, posInTrace)){
     E_(1,
       char* seq2 = calloc(12, sizeof(char));
@@ -36,12 +36,11 @@ kcLL* followTrace(kmerHolder** khp, uint32_t pos, LISTTYPE tid, LISTTYPE posInTr
       //getc(stdin)
     );
     kcpush(&result, &kc, tid, posInTrace);
-    kc = nextKc(&ms, &kc, tid, posInTrace);
+    kc = nextKc(&ms, &kc, &thisTrace, posInTrace);
     if (!kc){
       D_(0, "Trace %lu interrupted\n", (LUI) tid);
     }
     posInTrace++;
-    if (kc) thisTrace = _getTrace(&kc->idflags, tid, posInTrace);
   }
   if (kc) kcpush(&result, &kc, tid, posInTrace);
   return result;
@@ -102,16 +101,14 @@ seqCollection* recursivelyFollowTrace(kmerHolder** khp, kmerConnector** kcp, LIS
   memstruct* ms = (*khp)->ms;
   kmerConnector* kc = *kcp;
   kcpush(&result->trace, &kc, tid, posInTrace);
-  kc = nextKc(&ms, &kc, tid, posInTrace);
+  tIdList* thisTrace = _getTrace(&kc->idflags, tid, posInTrace);
+  kc = nextKc(&ms, &kc, &thisTrace, posInTrace);
   posInTrace++;
   if (!kc) return result;
-  tIdList* thisTrace = _getTrace(&kc->idflags, tid, posInTrace);
   while (kc && thisTrace){
     kcpush(&result->trace, &kc, tid, posInTrace);
-
-    kc = nextKc(&ms, &kc, tid, posInTrace);
+    kc = nextKc(&ms, &kc, &thisTrace, posInTrace);
     posInTrace++;
-    if (kc) thisTrace = _getTrace(&kc->idflags, tid, posInTrace);
   }
   return result;
 }

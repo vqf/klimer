@@ -9,7 +9,7 @@
 #define RESERVED       0x10
 #define FIRST_IN_TRACE 0x08
 #define LAST_IN_TRACE  0x04
-#define CIRCULAR       0x02
+//#define CIRCULAR       0x02
 #define IN_USE         0x01
 
 

@@ -7,8 +7,8 @@
 #include "myseqfunctions/kmerRead.h"
 
 #define KMERLENGTH 15
-#define TELLUSEREVERY 1000
-#define CANONIZEEVERY 20000
+#define TELLUSEREVERY 10000
+#define CANONIZEEVERY 0000
 
 void print_usage(){
   printf("buildMap [opts] infile [outfile]");

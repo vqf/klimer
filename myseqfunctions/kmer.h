@@ -26,9 +26,6 @@
 typedef enum { false, true } bool;
 #endif /* BOOL */
 
-#ifndef IN_USE
-#define IN_USE  0x01
-#endif /* IN_USE */
 
 
 // Set, unset and check flags in traces
@@ -114,21 +111,24 @@ kmerConnector* kcDebug = NULL;
 LISTTYPE iDebug = 0;
 LISTTYPE posDebug = 0;
 char* getTraceSeq(kmerHolder**, kcLL**);
-kmerConnector* nextKc(memstruct**, kmerConnector**, LISTTYPE, LISTTYPE);
+kmerConnector* nextKc(memstruct**, kmerConnector**, tIdList**, LISTTYPE);
 static void sig_handler(int signo) {
     printf("Interactive attention signal caught.\n");
     printf("Trace %lu\n", (LUI) iDebug);
+    DEBUG++;
+    STOP("Debug: %d\n", DEBUG);
+    /*
     kmerConnector* kcptr = kcDebug;
     kcLL* toseq = NULL;
     while (kcptr){
       kcpush(&toseq, &kcptr, iDebug, posDebug);
-      kcptr = nextKc(&khDebug->ms, &kcptr, iDebug, posDebug);
+      tIdList* tmp = _getTrace(&kcptr->idflags, iDebug, posDebug);
+      kcptr = nextKc(&khDebug->ms, &kcptr, &tmp, posDebug);
       posDebug++;
     }
     char* seq = getTraceSeq(&khDebug, &toseq);
     printf("%s\n", seq);
-    printTIdList(kcDebug->idflags); printf("\n");
-    exit(0);
+    printTIdList(kcDebug->idflags); printf("\n");*/
 }
 
 // SIGNAL HANDLING
@@ -437,7 +437,8 @@ void debugTrace(kcLL** llp){
 }
 /**/
 
-kmerConnector* getKcWithTId(memstruct** msp, uint32_t pos, LISTTYPE tid, LISTTYPE posInTrace){
+kmerConnector* getKcWithTId(memstruct** msp, uint32_t pos, LISTTYPE tid, LISTTYPE posInTrace, tIdList** tp){
+  //Returns the kc and sets tp to the corresponding trace
   memstruct* ms = *msp;
   kmerConnector* kc = ms->kmerArray[pos];
   kmerConnector* result = NULL;
@@ -445,6 +446,7 @@ kmerConnector* getKcWithTId(memstruct** msp, uint32_t pos, LISTTYPE tid, LISTTYP
     tIdList* tt = _getTrace(&kc->idflags, tid, posInTrace);
     if (tt){
       result = kc;
+      *tp = tt;
     }
     kc = kc->next;
   }
@@ -453,11 +455,11 @@ kmerConnector* getKcWithTId(memstruct** msp, uint32_t pos, LISTTYPE tid, LISTTYP
 
 
 
-kmerConnector* nextKc(memstruct** msp, kmerConnector** kcp, LISTTYPE i, LISTTYPE pos){
+kmerConnector* nextKc(memstruct** msp, kmerConnector** kcp, tIdList** p, LISTTYPE pos){
   kmerConnector* kc = *kcp;
   D_(2, "From %.8x\n", (unsigned int) kc->uid);
   kmerConnector* result = NULL;
-  result = getKcWithTId(msp, kc->dest, i, pos + 1);
+  result = getKcWithTId(msp, kc->dest, (*p)->trace.n, pos + 1, p);
   return result;
 }
 //#define nextKc(a,b,c,d) nextKc(a,b,c,d); printf("%d\n", __LINE__);
@@ -492,6 +494,7 @@ void cleanTraceStatus(kmerHolder** khp){
 void shiftPosInTrace(memstruct** msp, kmerConnector** kcp, tIdList** tp, LISTTYPE n){
   // returns number of kcs shifted
   tIdList* t = *tp;
+  tIdList* tmp = t;
   D_(2, "Shifting trace %lu by %lu\n", (LUI) t->trace.n, (LUI) n);
   kmerConnector* kc = *kcp;
   LISTTYPE cPos = 1;
@@ -499,7 +502,7 @@ void shiftPosInTrace(memstruct** msp, kmerConnector** kcp, tIdList** tp, LISTTYP
     LISTTYPE i = t->trace.n;
     traceVessel* posToShift = NULL;
     while (kc){
-      tIdList* toShift = _getTrace(&kc->idflags, i, cPos);
+      tIdList* toShift = tmp;
       if (toShift){
         tIdList* ps = _getPos(&toShift, i, cPos);
         pushTraceInVessel(&posToShift, &ps);
@@ -507,7 +510,7 @@ void shiftPosInTrace(memstruct** msp, kmerConnector** kcp, tIdList** tp, LISTTYP
       else{
         D_(0, "Error, lacking trace %lu, pos %lu\n", (LUI) i, (LUI) cPos);
       }
-      kc = nextKc(msp, &kc, i, cPos);
+      kc = nextKc(msp, &kc, &tmp, cPos);
       cPos++;
     }
     traceVessel* tmp = posToShift;
@@ -1108,10 +1111,10 @@ void filterMergeKh(kmerHolder** khp1, kmerHolder** khp2, uint16_t filter){
 void setTraceDelme(memstruct** msp, kmerConnector** kcp, LISTTYPE i){
   kmerConnector* kcptr = *kcp;
   LISTTYPE cPos = 1;
+  tIdList* p = _getTrace(&kcptr->idflags, i, cPos);
   while (kcptr){
-    tIdList* p = _getTrace(&kcptr->idflags, i, cPos);
     SET(p, DELME);
-    kcptr = nextKc(msp, &kcptr, i, cPos);
+    kcptr = nextKc(msp, &kcptr, &p, cPos);
     cPos++;
   }
 }
@@ -1127,6 +1130,14 @@ void _consolidate(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
   kmerConnector* kcptr = kc;
   bool doConsol = true;
   bool doGoon   = true;
+  tIdList* iptr = _getTrace(&kcptr->idflags, i, cPosI);
+  tIdList* tmpiptr = iptr;
+  if (i == n){
+    printTIdList(tmpiptr); printf("\n\n");
+    tIdList* nptr = _getTrace(&kcptr->idflags, n, cPosN);
+    printTIdList(nptr); printf("\n");
+    DIE("yo");
+  }
   while (kcptr && doGoon){ // Check compatibility
     // This follows trace i and looks for trace n
     // The last time n is found, it should be LAST_IN_TRACE
@@ -1145,7 +1156,7 @@ void _consolidate(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
       doConsol = false;
       doGoon = false;
     }
-    kcptr = nextKc(&ms, &kcptr, i, cPosI);
+    kcptr = nextKc(&ms, &kcptr, &tmpiptr, cPosI);
     cPosI++; cPosN++;
   }
   // Consolidate if compatible
@@ -1161,8 +1172,9 @@ void _consolidate(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
     kcptr = kc;
     bool goon = true;
     kmerConnector* bridge = kcptr;
+    tIdList* todel = NULL;
     while (kcptr && goon){ // Here they will be simply marked for deletion
-      tIdList* todel = _getTrace(&kcptr->idflags, n, cPosN);
+      todel = _getTrace(&kcptr->idflags, n, cPosN);
       if (todel){
         if (!NalreadyDeleted) kcpush(toDelp, &kcptr, n, cPosN);
       }
@@ -1170,19 +1182,20 @@ void _consolidate(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
         goon = false;
       }
       bridge = kcptr;
-      kcptr = nextKc(&ms, &kcptr, i, cPosI);
+      kcptr = nextKc(&ms, &kcptr, &iptr, cPosI);
       cPosI++; cPosN++;
       D_(2, "CposI: %lu, CposN: %lu\n", (LUI) cPosI, (LUI) cPosN);
     }
     if (goon){ // Here, the remaining traces will be extended, and the old traces marked for deletion
-      if (bridge) kcptr = nextKc(&ms, &bridge, n, cPosN - 1);
+      if (bridge) kcptr = nextKc(&ms, &bridge, &todel, cPosN - 1);
+      tIdList* oldTrace = NULL;
       if (kcptr){
         // We go on, and therefore bridge should not be last in trace
         unsetAsLast(&bridge->idflags, i, cPosI - 1);
         D_(2, "Unsetting last in trace %lu\n", (LUI) i);
+        oldTrace = _getTrace(&kcptr->idflags, n, cPosN);
       }
       while (kcptr){
-        tIdList* oldTrace = _getTrace(&kcptr->idflags, n, cPosN);
         // The whole trace will be deleted afterwards
         if (!NalreadyDeleted) kcpush(toDelp, &kcptr, n, cPosN);
         tIdList* newTrace = addTrace(&kcptr->idflags, i);
@@ -1192,7 +1205,8 @@ void _consolidate(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
         newPos->trace.nReads = oldPos->trace.nReads;
         newTrace->trace.flag = oldTrace->trace.flag;
         newTrace->trace.nReads = oldTrace->trace.nReads;
-        kcptr = nextKc(&ms, &kcptr, n, cPosN);
+        SET(newTrace, IN_USE);
+        kcptr = nextKc(&ms, &kcptr, &oldTrace, cPosN);
         cPosI++; cPosN++;
         D_(2, "CposI: %lu, CposN: %lu\n", (LUI) cPosI, (LUI) cPosN);
       }
@@ -1201,24 +1215,26 @@ void _consolidate(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
   }
 }
 
-void setTraceInUse(memstruct** msp, kmerConnector** kcp, LISTTYPE i){
+void setTraceInUse(memstruct** msp, kmerConnector** kcp, tIdList** cTid){
   kmerConnector* kcptr = *kcp;
   LISTTYPE cPos = 1;
+  tIdList* tid = *cTid;
+  tIdList* p = tid;
   while (kcptr){
-    tIdList* p = _getTrace(&kcptr->idflags, i, cPos);
     SET(p, IN_USE);
-    kcptr = nextKc(msp, &kcptr, i, cPos);
+    kcptr = nextKc(msp, &kcptr, &p, cPos);
     cPos++;
   }
 }
 
-void unsetTraceInUse(memstruct** msp, kmerConnector** kcp, LISTTYPE i){
+void unsetTraceInUse(memstruct** msp, kmerConnector** kcp, tIdList** cTid){
   kmerConnector* kcptr = *kcp;
+  tIdList* tid = *cTid;
+  tIdList* p = tid;
   LISTTYPE cPos = 1;
   while (kcptr){
-    tIdList* p = _getTrace(&kcptr->idflags, i, cPos);
     UNSET(p, IN_USE);
-    kcptr = nextKc(msp, &kcptr, i, cPos);
+    kcptr = nextKc(msp, &kcptr, &p, cPos);
     cPos++;
   }
 }
@@ -1231,48 +1247,52 @@ void _canonizeThis(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
   LISTTYPE cPos = 1;
   kmerConnector* kcptr = kc;
   // Set all in use
-
-  setTraceInUse(&ms, kcp, i);
-  while(kcptr){
-    if (kcptr->idflags){
-      tIdList* idptr = _getTrace(&kcptr->idflags, i, cPos);
-      tIdList* p = _getTrace(&idptr->posInTrace, cPos, 0);
-      if (!IS(p, DELME) && !IS(p, IN_USE)){
-        if (idptr){
-          traceVessel* firsts = traceFirst(&kcptr->idflags);
-          traceVessel* fstptr = firsts;
-          E_(2, printTraceLL((traceLL*) firsts));
-          while (fstptr && fstptr->tidl){
-            traceVessel* nxt = fstptr->next;
-            if (IS(fstptr->tidl, IN_USE)){
-              D_(2, "Will not check trace %lu: In use\n", (LUI) fstptr->tidl->trace.n);
+  tIdList* tid = _getTrace(&kc->idflags, i, cPos);
+  tIdList* start = tid;
+  if (!IS(tid, IN_USE)){
+    setTraceInUse(&ms, kcp, &tid);
+    E_(2, printTIdList(start));
+    while(kcptr){
+      if (kcptr->idflags){
+        tIdList* idptr = _getTrace(&kcptr->idflags, i, cPos);
+        tIdList* p = _getTrace(&idptr->posInTrace, cPos, 0);
+        if (!IS(p, DELME)){
+          if (idptr){
+            traceVessel* firsts = traceFirst(&kcptr->idflags);
+            traceVessel* fstptr = firsts;
+            E_(2, printTraceLL((traceLL*) firsts));
+            while (fstptr && fstptr->tidl){
+              traceVessel* nxt = fstptr->next;
+              if (IS(fstptr->tidl, IN_USE)){
+                D_(2, "Will not check trace %lu: In use\n", (LUI) fstptr->tidl->trace.n);
+              }
+              else{
+                D_(2, "Canonizing trace %lu with trace %lu\n", (LUI) i, (LUI) fstptr->tidl->trace.n);
+                if (DEBUG >= 1){
+                  khDebug = *khp;
+                  kcDebug = kc;
+                  iDebug  = fstptr->tidl->trace.n;
+                  posDebug = 1;
+                }
+                if (!IS(fstptr->tidl, CANON) && !IS(fstptr->tidl, IN_USE)){
+                  _canonizeThis(khp, &kcptr, fstptr->tidl->trace.n, toDelp);
+                }
+                if (!IS(fstptr->tidl, DELME) && !IS(fstptr->tidl, IN_USE)){
+                  _consolidate(khp, &kcptr, i, fstptr->tidl->trace.n, cPos, toDelp);
+                }
+                SET(fstptr->tidl, CANON);
+              }
+              fstptr = nxt;
             }
-            else{
-              D_(2, "Canonizing trace %lu with trace %lu\n", (LUI) i, (LUI) fstptr->tidl->trace.n);
-              if (DEBUG >= 1){
-                khDebug = *khp;
-                kcDebug = kc;
-                iDebug  = fstptr->tidl->trace.n;
-                posDebug = 1;
-              }
-              if (!IS(fstptr->tidl, CANON)){
-                _canonizeThis(khp, &kcptr, fstptr->tidl->trace.n, toDelp);
-              }
-              if (!IS(fstptr->tidl, DELME)){
-                _consolidate(khp, &kcptr, i, fstptr->tidl->trace.n, cPos, toDelp);
-              }
-              SET(fstptr->tidl, CANON);
-            }
-            fstptr = nxt;
+            destroyTraceVessel(&firsts);
           }
-          destroyTraceVessel(&firsts);
         }
       }
+      kcptr = nextKc(&ms, &kcptr, &tid, cPos);
+      cPos++;
     }
-    kcptr = nextKc(&ms, &kcptr, i, cPos);
-    cPos++;
+    unsetTraceInUse(&ms, kcp, &start);
   }
-  unsetTraceInUse(&ms, kcp, i);
 }
 
 void _canonize(kmerHolder** khp){
@@ -1287,7 +1307,7 @@ void _canonize(kmerHolder** khp){
     while (kc && kc->n > 0){
       tIdList* l = kc->idflags;
       while (l){
-        if (!IS(l, CANON) && isFirst(&l)){
+        if (isFirst(&l) && !IS(l, CANON) && !IS(l, DELME)){
           D_(2, "Checking trace %lu\n", (LUI) l->trace.n)
           _canonizeThis(khp, &kc, l->trace.n, &toDel);
         }
