@@ -65,6 +65,11 @@
 				<Option type="1" />
 				<Option compiler="gcc" />
 			</Target>
+			<Target title="checkSeq">
+				<Option output="checkSeq" prefix_auto="1" extension_auto="1" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
@@ -83,6 +88,10 @@
 		<Unit filename="buildMap.c">
 			<Option compilerVar="CC" />
 			<Option target="buildMap" />
+		</Unit>
+		<Unit filename="checkSeq.c">
+			<Option compilerVar="CC" />
+			<Option target="checkSeq" />
 		</Unit>
 		<Unit filename="compareMaps.c">
 			<Option compilerVar="CC" />
@@ -111,6 +120,7 @@
 			<Option target="buildMap" />
 			<Option target="kmerHist" />
 			<Option target="mergeKh" />
+			<Option target="checkSeq" />
 		</Unit>
 		<Unit filename="myseqfunctions/debugFileIO.h">
 			<Option target="Debug" />
@@ -128,6 +138,7 @@
 			<Option target="kmerHist" />
 			<Option target="mergeKh" />
 			<Option target="khSummary" />
+			<Option target="checkSeq" />
 		</Unit>
 		<Unit filename="myseqfunctions/kmerIO.h">
 			<Option target="Debug" />
@@ -138,6 +149,7 @@
 			<Option target="kmerHist" />
 			<Option target="mergeKh" />
 			<Option target="khSummary" />
+			<Option target="checkSeq" />
 		</Unit>
 		<Unit filename="myseqfunctions/kmerRead.h">
 			<Option target="Debug" />
@@ -148,6 +160,7 @@
 			<Option target="kmerHist" />
 			<Option target="mergeKh" />
 			<Option target="khSummary" />
+			<Option target="checkSeq" />
 		</Unit>
 		<Unit filename="myseqfunctions/mydmacros.h" />
 		<Unit filename="myseqfunctions/readFastas.h">

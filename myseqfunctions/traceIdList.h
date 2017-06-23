@@ -6,7 +6,8 @@
 // Trace flags
 #define DELME          0x80
 #define CANON          0x40
-#define RESERVED       0x10
+#define LREAD          0x20  // Last in read
+#define FREAD          0x10  // First in read
 #define FIRST_IN_TRACE 0x08
 #define LAST_IN_TRACE  0x04
 //#define CIRCULAR       0x02
@@ -29,6 +30,7 @@
 //#include "kmer.h"
 
 typedef struct tId{
+  LISTTYPE addme; // Keep track and defer shiftPosInTrace
   LISTTYPE n;
   uint8_t  flag;
   uint32_t nReads; // Number of events supporting connection
@@ -101,6 +103,7 @@ void printTIdList(tIdList* a){
 tIdList* newTIdList(LISTTYPE val){
   tIdList* result = (tIdList*) calloc(1, sizeof(tIdList));
   result->trace.n = val;
+  result->trace.addme = 0;
   result->trace.nReads = 0;
   result->next = NULL;
   result->last = NULL;

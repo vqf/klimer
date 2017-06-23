@@ -27,6 +27,7 @@ typedef struct mll{
 typedef struct seqCollection{
   kcLL* trace;
   LISTTYPE traceId;
+  bool delme;
   struct seqCollection* next;
   struct seqCollection* down;
 } seqCollection;
@@ -108,12 +109,19 @@ seqCollection* newSeqCollection(){
   result->trace = NULL;
   result->next = NULL;
   result->down = NULL;
+  result->delme = false;
   return result;
 }
 
 seqCollection* pushSeq(seqCollection** scp, kcLL** tracep){
   // returns a pointer to the last element
   seqCollection* sc = *scp;
+  if (!sc){
+    sc = newSeqCollection();
+    sc->trace = *tracep;
+    *scp = sc;
+    return sc;
+  }
   while (sc && sc->down){
     sc = sc->down;
   }
@@ -126,6 +134,12 @@ seqCollection* pushSeq(seqCollection** scp, kcLL** tracep){
 seqCollection* addSeq(seqCollection** scp, kcLL** tracep){
   // returns a pointer to the last element
   seqCollection* sc = *scp;
+  if (!sc){
+    sc = newSeqCollection();
+    sc->trace = *tracep;
+    *scp = sc;
+    return sc;
+  }
   while (sc && sc->next){
     sc = sc->next;
   }

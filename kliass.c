@@ -15,8 +15,15 @@ int main(int argc,char** argv){
     fprintf(stderr, "Use: kliass k11file\n");
     return 1;
   }
+  for (int i = 2; i < argc; i++){
+    char* rg = argv[i];
+    D_(0, "%s\n", rg);
+    if (rg[0] == 0x2d){
+      if (!strcmp(rg, "-v")) DEBUG = 1;
+      if (!strcmp(rg, "-vv")) DEBUG = 2;
+    }
+  }
   kmerHolder* kh = readIn(argv[1]);
-
 
   //seqCollection* sc = allTraces(&kh);
   kcLL* s1 = nextTrace(&kh);

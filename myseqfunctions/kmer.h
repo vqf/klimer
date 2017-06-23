@@ -308,9 +308,10 @@ void setKmerArray(kmerHolder** kp, uint8_t wlength){
   ms->kmerSize = wlength;
   ms->nPos = power(ms->bi->nbases, wlength);
   cleanTraceStatus(kp);
-  uint32_t nb = sizeof(kmerConnector) * ms->nPos;
+  uint64_t nb = sizeof(kmerConnector) * ms->nPos;
   ms->nBytes = nb;
-  D_(1, "Allocating %lu bytes...\n", (long unsigned int) nb);
+  //DIE("%" PRIu32 " times %" PRIu32 " equals %" PRIu64 "\n", (uint32_t) (sizeof(kmerConnector)), (uint32_t) ms->nPos, nb);
+  D_(1, "Allocating %" PRIu64 " bytes...\n", nb);
   ms->kmerArray = (kmerConnector**) calloc(ms->nPos, sizeof(kmerConnector*));
   D_(1, "Done\n");
 }
@@ -529,11 +530,16 @@ void resetTrace(kmerHolder** kp){
   kcLL** tmpp = &ms->status->trace;
   kcLL* tmp = *tmpp;
   bool newTrace = true;
+  uint32_t tlen = lengthKcll(tmpp);
+  D_(2, "%"PRIu32"\t%"PRIu8"\n", tlen, (*kp)->kmerSize);
+  if (tlen < ((uint32_t) (*kp)->kmerSize)){
+    cleanTraceStatus(kp);
+    return;
+  }
   if (ms->status->traceSet){
     newTrace = false;
     // If several tSets refer to the same trace, only one
-    // should be incorporated. The rest will be added as
-    // new traces (conflict)
+    // will be incorporated.
     tIdList* used = NULL;
     tSet* tmpTSet = ms->status->traceSet;
     while (tmpTSet){
@@ -551,15 +557,25 @@ void resetTrace(kmerHolder** kp){
   if (newTrace){
     nextId(&ms);
     D_(1, "This is a new trace (%lu)\n", (LUI) ms->status->cId);
+    tIdList* fpos = NULL;
+    tIdList* lpos = NULL;
     while (tmp){
       tIdList* tl = addTrace(&tmp->kc->idflags, ms->status->cId);
-      addPosInTrace(&tl, cposInTrace);
+      tIdList* cPosTid = addPosInTrace(&tl, cposInTrace);
+      if (fpos){
+        lpos = cPosTid;
+      }
+      else{
+        fpos = cPosTid;
+      }
       cposInTrace++;
       tmp = tmp->next;
     }
     if (ms->status->trace){
       setAsFirst(&ms->status->trace->kc->idflags, ms->status->cId, 1);
       setAsLast(&ms->status->trace->last->kc->idflags, ms->status->cId, cposInTrace - 1);
+      //SET(fpos, FIRST_IN_TRACE); SET(lpos, LAST_IN_TRACE); // Avoid unnecessary calls to _getTrace
+      SET(fpos, FREAD); SET(lpos, LREAD);
     }
   }
   else{
@@ -567,6 +583,8 @@ void resetTrace(kmerHolder** kp){
     E_(2, printTSet(ms->status->traceSet));
     while (eachTSet){
       cposInTrace = 1;
+      tIdList* rFst = NULL;
+      tIdList* rLst = NULL;
       if (!eachTSet->conflict){
         tmp = ms->status->trace;
         LISTTYPE cId = eachTSet->traceId;
@@ -574,17 +592,23 @@ void resetTrace(kmerHolder** kp){
         if (eachTSet->type == 0){
           LISTTYPE nId = eachTSet->traceId;
           cposInTrace = eachTSet->startingPos;
-          D_(1, "Inside trace (%lu)\n", (LUI) nId);
+          D_(1, "Inside trace (%" PRIu32 ")\n", nId);
           while (tmp){
             tIdList* tl = addTrace(&tmp->kc->idflags, nId);
-            addPosInTrace(&tl, cposInTrace);
+            tIdList* cPos = addPosInTrace(&tl, cposInTrace);
+            if (rFst){
+              rLst = cPos;
+            }
+            else{
+              rFst = cPos;
+            }
             cposInTrace++;
             tmp = tmp->next;
           }
         }
         cposInTrace = eachTSet->startingPos;
         if (eachTSet->type == 1 || eachTSet->type == 3){ // Extending up
-          D_(1, "Extending up trace %lu\n", (LUI) eachTSet->traceId);
+          D_(1, "Extending up trace %" PRIu32 "\n", eachTSet->traceId);
           LISTTYPE counter = 1;
           while (counter < eachTSet->upShift){
             counter++;
@@ -610,7 +634,13 @@ void resetTrace(kmerHolder** kp){
           tmp = ms->status->trace;
           while (cposInTrace < eachTSet->upShift){
             tIdList* tl = addTrace(&tmp->kc->idflags, cId);
-            addPosInTrace(&tl, cposInTrace);
+            tIdList* cPos = addPosInTrace(&tl, cposInTrace);
+            if (rFst){
+              rLst = cPos;
+            }
+            else{
+              rFst = cPos;
+            }
             cposInTrace++;
             posInRead++;
             tmp = tmp->next;
@@ -623,7 +653,13 @@ void resetTrace(kmerHolder** kp){
         if (eachTSet->type == 2){
           while(posInRead < eachTSet->dnShift){
             tIdList* tl = addTrace(&tmp->kc->idflags, cId);
-            addPosInTrace(&tl, cposInTrace);
+            tIdList* cPos = addPosInTrace(&tl, cposInTrace);
+            if (rFst){
+              rLst = cPos;
+            }
+            else{
+              rFst = cPos;
+            }
             cposInTrace++;
             posInRead++;
             tmp = tmp->next;
@@ -640,7 +676,13 @@ void resetTrace(kmerHolder** kp){
           }
           while(tmp){
             tIdList* tl = addTrace(&tmp->kc->idflags, cId);
-            addPosInTrace(&tl, cposInTrace);
+            tIdList* cPos = addPosInTrace(&tl, cposInTrace);
+            if (rFst){
+              rLst = cPos;
+            }
+            else{
+              rFst = cPos;
+            }
             cposInTrace++;
             tmp = tmp->next;
           }
@@ -653,11 +695,18 @@ void resetTrace(kmerHolder** kp){
         // finish it
         while(tmp){
           tIdList* tl = addTrace(&tmp->kc->idflags, cId);
-          addPosInTrace(&tl, cposInTrace);
+          tIdList* cPos = addPosInTrace(&tl, cposInTrace);
+          if (rFst){
+            rLst = cPos;
+          }
+          else{
+            rFst = cPos;
+          }
           cposInTrace++;
           tmp = tmp->next;
         }
       }
+      if (rFst) SET(rFst, FREAD); if (rLst) SET(rLst, LREAD);
       eachTSet = eachTSet->next;
     }
   }
@@ -955,16 +1004,8 @@ uint32_t nTraces(kmerHolder** khp, bool printAnalysis){
     while (kc){
       if (kc->idflags){
         uint32_t nids = tIdListLength(&kc->idflags);
-        if (nids > 300){
-          char* seq = (char*) calloc(20, sizeof(char));
-          pos2seq(&ms, i, seq);
-          fprintf(stdout, "pos %s with %" PRIu32 "\n", seq, nids);
-          free(seq);
-        }
-        else{
-          if (nids > 0) nt[nids]++;
-          if (nids > ntmax) ntmax = nids;
-        }
+        if (nids > 0) nt[nids]++;
+        if (nids > ntmax) ntmax = nids;
       }
       traceVessel* t = traceFirst(&kc->idflags);
       if (t){
@@ -1251,6 +1292,7 @@ void _canonizeThis(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
   tIdList* start = tid;
   if (!IS(tid, IN_USE)){
     setTraceInUse(&ms, kcp, &tid);
+    D_(1, "Setting trace %" PRIu32 " in use\n", tid->trace.n);
     E_(2, printTIdList(start));
     while(kcptr){
       if (kcptr->idflags){
@@ -1264,10 +1306,10 @@ void _canonizeThis(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
             while (fstptr && fstptr->tidl){
               traceVessel* nxt = fstptr->next;
               if (IS(fstptr->tidl, IN_USE)){
-                D_(2, "Will not check trace %lu: In use\n", (LUI) fstptr->tidl->trace.n);
+                D_(1, "Will not check trace %" PRIu32 ": In use\n", fstptr->tidl->trace.n);
               }
               else{
-                D_(2, "Canonizing trace %lu with trace %lu\n", (LUI) i, (LUI) fstptr->tidl->trace.n);
+                D_(1, "Canonizing trace %" PRIu32 " with trace %" PRIu32 "\n", i, fstptr->tidl->trace.n);
                 if (DEBUG >= 1){
                   khDebug = *khp;
                   kcDebug = kc;
@@ -1292,6 +1334,7 @@ void _canonizeThis(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
       cPos++;
     }
     unsetTraceInUse(&ms, kcp, &start);
+    D_(1, "Unetting trace %" PRIu32 " in use\n", start->trace.n);
   }
 }
 
@@ -1342,6 +1385,7 @@ void _canonize(kmerHolder** khp){
   }
   resetKcLL(&toDel);
 }
+
 
 
 #endif // KMER_H_INCLUDED

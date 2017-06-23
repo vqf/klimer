@@ -6,7 +6,7 @@
 #include "myseqfunctions/readSeqFiles.h"
 #include "myseqfunctions/kmerRead.h"
 
-#define KMERLENGTH 15
+//#define KMERLENGTH 15
 #define TELLUSEREVERY 10000
 #define CANONIZEEVERY 0000
 
@@ -16,9 +16,10 @@ void print_usage(){
 
 int main(int argc,char** argv){
   if (argc < 2){
-    fprintf(stderr, "Use: %s fasta_file [outfile] [-v]\n", argv[0]);
+    fprintf(stderr, "Use: %s fasta_file [outfile] [-v] [-k kmerLength]\n", argv[0]);
     return 1;
   }
+  uint8_t kmerLength = 15;
   char* infile  = argv[1];
   char* outfile = (char*) calloc(80, sizeof(char));
 
@@ -27,8 +28,12 @@ int main(int argc,char** argv){
     char* rg = argv[i];
     D_(0, "%s\n", rg);
     if (rg[0] == 0x2d){
-      if (!strcmp(rg, "-v")) DEBUG = 1;
-      if (!strcmp(rg, "-vv")) DEBUG = 2;
+      if (EQ(rg, "-v")) DEBUG = 1;
+      if (EQ(rg, "-vv")) DEBUG = 2;
+      if (EQ(rg, "-k")){
+        i++;
+        kmerLength = (uint8_t) atoi(argv[i]);
+      }
     }
     else{
       outfile = rg;
@@ -36,7 +41,7 @@ int main(int argc,char** argv){
   }
   time_t start = time(NULL);
   seqReader* sf = newSeqReader(infile);
-  kmerHolder* kh = initKmer(KMERLENGTH, 4);
+  kmerHolder* kh = initKmer(kmerLength, 4);
   uint32_t counter = 0;
   uint32_t counter2 = 0;
   uint32_t nseq = 0;

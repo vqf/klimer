@@ -35,10 +35,16 @@ uint8_t writeOut(kmerHolder** khp, char* fname){
   memstruct* ms = kh->ms;
   _canonize(khp);
   FILE* fout = fopen(fname, "wb");
+  char* headerInfo = "";
   if (fout){
     D_(2, "Writing header\n")
     uint32_t magic = MAGIC;
     fwrite(&magic, sizeof(uint32_t), 1, fout);
+    //
+    uint32_t hL = (uint32_t) (strlen(headerInfo));
+    fwrite(&hL, sizeof(uint32_t), 1, fout);
+    fwrite(headerInfo, sizeof(char), hL, fout);
+    //
     fwrite(&kh->kmerSize, sizeof(uint8_t), 1, fout);
     fwrite(&kh->nBases, sizeof(uint8_t), 1, fout);
     uint32_t i = 0;
@@ -91,15 +97,22 @@ kmerHolder* readIn(char* file){
   FILE* fin = fopen(file, "rb");
   if (fin){
     uint32_t magic;
+    uint32_t hL;
+    char* headerInfo = NULL;
     uint8_t  kmerLength;
     uint8_t  nBases;
-    D_(2, "Reading Header\n");
+    D_(1, "Reading Header\n");
     fread(&magic, sizeof(uint32_t), 1, fin);
+    //
+    fread(&hL, sizeof(uint32_t), 1, fin);
+    fread(headerInfo, sizeof(char), hL, fin);
+    //
     fread(&kmerLength, sizeof(uint8_t), 1, fin);
     fread(&nBases, sizeof(uint8_t), 1, fin);
     if (magic != MAGIC){
       fprintf(stderr, "Your magic is incorrect, the file might be corrupted\n");
     }
+    D_(1, "KmerLength: %" PRIu8 ", NBases: %" PRIu8 "\n", kmerLength, nBases);
     kmerHolder* result = initKmer(kmerLength, nBases);
     uint32_t orig = 0;
     uint32_t dest = 0;

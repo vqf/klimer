@@ -128,7 +128,7 @@ bool _readLine(fastaReader* fr){
       D_(2, "Chr %s\n", fr->cname);
       fr->newchr = true;
       _readLine(fr);
-      return false;
+      return true;
     }
   }
   else{ //Finished file

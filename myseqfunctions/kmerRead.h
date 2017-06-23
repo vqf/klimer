@@ -5,7 +5,7 @@
 #include "traceIdList.h"
 #include "stdio.h"
 
-
+typedef enum { absent, present, fragmented} testSeq;
 
 
 char getLastBase(kmerHolder** khp, uint32_t pos){
@@ -164,11 +164,13 @@ seqCollection* bestSeqCollection(seqCollection** scp){
 }
 
 void printSeq(kmerHolder** khp, seqCollection** scp){
+  kmerHolder* kh = *khp;
   seqCollection* sc = *scp;
   if (sc->trace){
-    char* seq = getTraceSeq(khp, &sc->trace);
+    /*char* seq = getTraceSeq(khp, &sc->trace);
     printf("%s\n", seq);
-    free(seq);
+    free(seq);*/
+    printKcLL(kh->ms, sc->trace);
   }
 }
 
@@ -178,9 +180,82 @@ void printSeqCollection(kmerHolder** khp, seqCollection** scp){
   while (sc){
     i++;
     printf(">trace%lu\n", (LUI) i);
-    printSeq(khp, scp);
-    sc = sc->next;
+    printSeq(khp, &sc);
+    sc = sc->down;
   }
+}
+
+seqCollection* searchSeq(kmerHolder** khp, char* seq){
+  kmerHolder* kh = *khp;
+  uint32_t lseq = (uint32_t) strlen(seq);
+  seqCollection* result = NULL;
+  D_(1, "Resetting trace\n");
+  kh->cVal = 0;
+  kh->posInMemBuffer = 0;
+  for (uint32_t i = 0; i < lseq; i++){
+    char b = seq[i];
+    uint8_t baseVal = base(&kh->ms, &b);
+    D_(2, "Base %c, val %u\n", (int) b, baseVal);
+    if (!isBase(&kh->ms, seq)){
+      D_(0, "Sequence contains non-standard character %c. Results may not be reliable\n", b);
+      return result;
+    }
+    uint32_t ipos = kh->posInMemBuffer - (uint32_t) kh->kmerSize;
+    if (kh->posInMemBuffer >= (uint32_t) kh->kmerSize){ //kmer filled
+      uint32_t order = power(kh->ms->bi->nbases, kh->kmerSize - 1);
+      D_(2, "%" PRIu32 "\n", ipos);
+      unsigned char oldval = kh->buffer[ipos];
+      D_(2, "cVal: %" PRIu32 "\n", kh->cVal);
+      kmerConnector* kc = kh->ms->kmerArray[kh->cVal];
+      if (result){
+        seqCollection* tmpsc = result;
+        while (tmpsc){
+          if (!tmpsc->delme){
+            kcLL* kcT = tmpsc->trace;
+            LISTTYPE i = kcT->ntid;
+            LISTTYPE p = kcT->posInTrace;
+            kcT->posInTrace++;
+            tIdList* point = _getTrace(&kcT->kc->idflags, i, p);
+            if (point){
+              kcpush(&kcT, &kc, i, p);
+            }
+            else{ //Delete sc
+              tmpsc->delme = true;
+            }
+          }
+          tmpsc = tmpsc->down;
+        }
+      }
+      else{
+        if (!kc) return NULL;
+        tIdList* tmpid = kc->idflags;
+        while (tmpid){
+          LISTTYPE ntid = tmpid->trace.n;
+          D_(2, "%"PRIu32"\n", ntid);
+          tIdList* tmppos = tmpid->posInTrace;
+          while (tmppos){
+            kcLL* starting = NULL;
+            LISTTYPE pos = tmppos->trace.n;
+            kcpush(&starting, &kc, ntid, pos);
+            pushSeq(&result, &starting);
+            tmppos = tmppos->next;
+          }
+          tmpid = tmpid->next;
+        }
+      }
+      kh->cVal -=  order * (uint32_t) oldval;
+    }
+    kh->cVal *= (uint32_t) kh->ms->bi->nbases;
+    kh->cVal += (uint32_t) baseVal;
+    kh->buffer[kh->posInMemBuffer] = baseVal;
+    kh->posInMemBuffer++;
+    if (kh->posInMemBuffer >= (KMERBUFFERSIZE - 1)){ // Rewind
+      //printf("Rewinding\n");
+      memmove(kh->buffer, kh->buffer + ipos + 1, sizeof(char) * (kh->kmerSize));
+      kh->posInMemBuffer = (uint32_t) kh->kmerSize;
+    }
+  }
+  return result;
 }
 
 

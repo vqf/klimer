@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1497348748 source:c:\users\vqf\documents\cpp\klimer_project\github\test.c
+1497984880 source:c:\users\vqf\documents\cpp\klimer_project\github\test.c
 	<assert.h>
 	<stdarg.h>
 	"myseqfunctions/kmer.h"
@@ -11,7 +11,7 @@
 	<stdint.h>
 	<time.h>
 
-1497430269 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
+1498132734 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
 	<stdint.h>
 	<stdio.h>
 	<stdlib.h>
@@ -25,20 +25,20 @@
 
 1474482015 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\neathtml.h
 
-1497378858 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\traceidlist.h
+1497610043 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\traceidlist.h
 	"mydmacros.h"
 
-1496949507 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerio.h
+1498053250 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerio.h
 	"kmer.h"
 
 1485629211 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\debugfileio.h
 
-1497349055 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerread.h
+1498162605 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerread.h
 	"kmer.h"
 	"traceIdList.h"
 	"stdio.h"
 
-1497349532 source:c:\users\vqf\documents\cpp\klimer_project\github\kliass.c
+1498053377 source:c:\users\vqf\documents\cpp\klimer_project\github\kliass.c
 	<stdio.h>
 	<stdlib.h>
 	<string.h>
@@ -61,7 +61,7 @@
 	"mydmacros.h"
 	"IOLayer.h"
 
-1497204342 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\mydmacros.h
+1498130804 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\mydmacros.h
 	<signal.h>
 
 1487331485 source:c:\users\vqf\documents\cpp\klimer_project\github\comparemaps.c
@@ -71,7 +71,7 @@
 	"myseqfunctions/kmerRead.h"
 	"myseqfunctions/mydmacros.h"
 
-1493231117 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\seqcollection.h
+1498075534 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\seqcollection.h
 	"mydmacros.h"
 
 1495139184 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\readfastq.h
