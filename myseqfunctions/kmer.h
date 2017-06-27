@@ -104,6 +104,7 @@ kmerConnector* newKmerConnector(uint32_t);
 kmerConnector* getConnector(memstruct**, uint32_t, uint32_t);
 void delConnector(kmerConnector**);
 void cleanTraceStatus(kmerHolder**);
+kcLL* followTrace(kmerHolder**, uint32_t, LISTTYPE, LISTTYPE);
 
 // SIGNAL HANDLING
 kmerHolder* khDebug = NULL;
@@ -441,6 +442,7 @@ void debugTrace(kcLL** llp){
 kmerConnector* getKcWithTId(memstruct** msp, uint32_t pos, LISTTYPE tid, LISTTYPE posInTrace, tIdList** tp){
   //Returns the kc and sets tp to the corresponding trace
   memstruct* ms = *msp;
+  if (pos == NOKMER) return NULL;
   kmerConnector* kc = ms->kmerArray[pos];
   kmerConnector* result = NULL;
   while (kc && !result){
@@ -992,6 +994,23 @@ void summarize (memstruct* ms){
   }
 }
 
+uint32_t getStart(kmerHolder** khp, LISTTYPE nid){
+  kmerHolder* kh = *khp;
+  memstruct* ms = kh->ms;
+  uint32_t result = NOKMER;
+  for (uint32_t i = 0; i < ms->nPos; i++){
+    kmerConnector* p = ms->kmerArray[i];
+    if (p){
+      tIdList* ok = _getTrace(&p->idflags, nid, 1);
+      if (ok){
+        result = i;
+        return result;
+      }
+    }
+  }
+  return result;
+}
+
 uint32_t nTraces(kmerHolder** khp, bool printAnalysis){
   kmerHolder* kh = *khp;
   memstruct* ms = kh->ms;
@@ -999,6 +1018,8 @@ uint32_t nTraces(kmerHolder** khp, bool printAnalysis){
   uint32_t* nt = (uint32_t*) calloc(MAX, sizeof(uint32_t));
   uint32_t ntmax = 0;
   uint32_t result = 0;
+  char* maxseq = (char*) calloc(kh->kmerSize + 1, sizeof(char));
+  tIdList* cmplx = 0;
   for (uint32_t i = 0; i < ms->nPos; i++){
     kmerConnector* kc = ms->kmerArray[i];
     while (kc){
@@ -1006,6 +1027,8 @@ uint32_t nTraces(kmerHolder** khp, bool printAnalysis){
         uint32_t nids = tIdListLength(&kc->idflags);
         if (nids > 0) nt[nids]++;
         if (nids > ntmax) ntmax = nids;
+        if (nids == ntmax) cmplx = kc->idflags;
+        pos2seq(&kh->ms, i, maxseq);
       }
       traceVessel* t = traceFirst(&kc->idflags);
       if (t){
@@ -1022,6 +1045,30 @@ uint32_t nTraces(kmerHolder** khp, bool printAnalysis){
     }
   }
   free(nt);
+  // Show most complex
+  D_(0, "The winner is %s\n", maxseq);
+  free(maxseq);
+  tIdList* tmp = cmplx;
+  while (tmp){
+    LISTTYPE tid = tmp->trace.n;
+    printf(">Tid %" PRIu32 "\n", tid);
+    uint32_t start = getStart(khp, tid);
+    char* sseq = (char*) calloc(kh->kmerSize + 1, sizeof(char));
+    pos2seq(&kh->ms, start, sseq);
+    D_(0, ">Start at %" PRIu32 ", seq %s\n", tid, sseq);
+    free(sseq);
+    D_(0, ">Tid %" PRIu32 "\n", tid);
+    D_(0, "Start in %" PRIu32 "\n", start);
+    if (start != NOKMER){
+      kcLL* tseq = followTrace(khp, start, tid, 1);
+      char* seq = getTraceSeq(khp, &tseq);
+      printf("%s\n", seq);
+    }
+    else{
+      printf("Error\n");
+    }
+    tmp = tmp->next;
+  }
   return result;
 }
 

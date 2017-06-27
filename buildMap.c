@@ -7,8 +7,9 @@
 #include "myseqfunctions/kmerRead.h"
 
 //#define KMERLENGTH 15
-#define TELLUSEREVERY 10000
-#define CANONIZEEVERY 0000
+
+uint32_t tellUserEvery = 10000;
+uint32_t canonizeEvery = 0;
 
 void print_usage(){
   printf("buildMap [opts] infile [outfile]");
@@ -34,6 +35,10 @@ int main(int argc,char** argv){
         i++;
         kmerLength = (uint8_t) atoi(argv[i]);
       }
+      if (EQ(rg, "-c")){
+        i++;
+        canonizeEvery = (uint32_t) atoi(argv[i]);
+      }
     }
     else{
       outfile = rg;
@@ -56,12 +61,12 @@ int main(int argc,char** argv){
     counter++;
     counter2++;
     nseq++;
-    if (counter >= TELLUSEREVERY){
+    if (counter >= tellUserEvery){
       counter = 0;
       time_t now = time(NULL);
       D_(0, "%d\t%ld\n", nseq, now-start);
     }
-    if (CANONIZEEVERY > 0 && counter2 >= CANONIZEEVERY){
+    if (canonizeEvery > 0 && counter2 >= canonizeEvery){
       counter2 = 0;
       time_t now = time(NULL);
       _canonize(&kh);

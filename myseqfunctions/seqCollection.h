@@ -18,7 +18,7 @@ typedef struct kC{
 typedef struct mll{
   kmerConnector* kc;
   LISTTYPE ntid;
-  LISTTYPE posInTrace;
+  uint32_t cPos;
   struct mll* next;
   struct mll* last;
 } kcLL;
@@ -27,12 +27,13 @@ typedef struct mll{
 typedef struct seqCollection{
   kcLL* trace;
   LISTTYPE traceId;
+  LISTTYPE posInTrace;
   bool delme;
   struct seqCollection* next;
   struct seqCollection* down;
 } seqCollection;
 
-
+void destroySeqCollection(seqCollection**);
 
 void resetKcLL(kcLL** llp){
   kcLL* ll = *llp;
@@ -50,7 +51,7 @@ kcLL* newKcPointer(kmerConnector** newkcp, LISTTYPE ntid, LISTTYPE pos){
   result->kc = newkc;
   result->next = NULL;
   result->ntid = ntid;
-  result->posInTrace = pos;
+  result->cPos = pos;
   result->last = result;
   return result;
 }
@@ -77,7 +78,7 @@ kcLL* kcCopy(kcLL** kclp){
   if (kcl){
     //uint32_t pos = kcl->posInTrace;
     while (kcl){
-      kcpush(&result, &kcl->kc, kcl->ntid, kcl->posInTrace);
+      kcpush(&result, &kcl->kc, kcl->ntid, kcl->cPos);
       kcl = kcl->next;
     }
     //result->posInTrace = pos;
@@ -107,13 +108,14 @@ void kcConcat(kcLL** llp, kcLL** llp2){
 seqCollection* newSeqCollection(){
   seqCollection* result = calloc(1, sizeof(seqCollection));
   result->trace = NULL;
+  result->posInTrace = 0;
   result->next = NULL;
   result->down = NULL;
   result->delme = false;
   return result;
 }
 
-seqCollection* pushSeq(seqCollection** scp, kcLL** tracep){
+seqCollection* pushSeq(seqCollection** scp, kcLL** tracep, LISTTYPE posInTrace){
   // returns a pointer to the last element
   seqCollection* sc = *scp;
   if (!sc){
@@ -128,6 +130,7 @@ seqCollection* pushSeq(seqCollection** scp, kcLL** tracep){
   seqCollection* dn = newSeqCollection();
   dn->trace = *tracep;
   sc->down = dn;
+  sc->posInTrace = posInTrace;
   return dn;
 }
 
@@ -147,6 +150,32 @@ seqCollection* addSeq(seqCollection** scp, kcLL** tracep){
   nxt->trace = *tracep;
   sc->next = nxt;
   return nxt;
+}
+
+void pruneSeqCollection(seqCollection** scp){
+  seqCollection* sc = *scp;
+  seqCollection* psc = NULL;
+  int counter = 0;
+  while (sc){
+      counter++;
+    if (sc->delme){
+      seqCollection* todel = sc;
+      D_(1, "Deleting %d\n", counter);
+      sc = sc->down;
+      if (psc){
+        psc->down = sc;
+      }
+      else{
+        *scp = sc;
+      }
+      todel->down = NULL;
+      destroySeqCollection(&todel);
+    }
+    else{
+      psc = sc;
+      sc = sc->down;
+    }
+  }
 }
 
 
