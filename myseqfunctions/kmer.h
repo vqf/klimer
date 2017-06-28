@@ -27,7 +27,6 @@ typedef enum { false, true } bool;
 #endif /* BOOL */
 
 
-
 // Set, unset and check flags in traces
 // a -> tId object
 // b -> flag to operate
@@ -105,6 +104,8 @@ kmerConnector* getConnector(memstruct**, uint32_t, uint32_t);
 void delConnector(kmerConnector**);
 void cleanTraceStatus(kmerHolder**);
 kcLL* followTrace(kmerHolder**, uint32_t, LISTTYPE, LISTTYPE);
+void printSeqCollection(kmerHolder**, seqCollection**);
+
 
 // SIGNAL HANDLING
 kmerHolder* khDebug = NULL;
@@ -382,7 +383,90 @@ void addCount(kmerHolder** kp, uint32_t pos){
   }
 }
 
-void printHistogram (kmerHolder** khp){
+void scEliminateDuplicates(kmerHolder** khp, seqCollection** scp){
+  seqCollection* tsc = *scp;
+  while (tsc){
+    tsc->seq = getTraceSeq(khp, &tsc->trace);
+    tsc = tsc->down;
+  }
+  seqCollection* sc = *scp;
+  while (sc){
+    seqCollection* f = sc->down;
+    while (f){
+      E_(1, printf("%s\t%s\n", sc->seq, f->seq));
+      if (EQ(sc->seq, f->seq)){
+        f->delme = true;
+      }
+      f = f->down;
+    }
+    sc = sc->down;
+  }
+}
+
+seqCollection* exploreSeqs(kmerHolder** khp, uint32_t start, uint32_t l){
+  kmerHolder* kh = *khp;
+  memstruct* ms  = kh->ms;
+  seqCollection* result = NULL;
+  kmerConnector* kc = ms->kmerArray[start];
+  if (!kc) return result;
+  uint32_t i = 0;
+  while (i < (l - kh->kmerSize)){
+    if (result){
+      seqCollection* tsc = result;
+      while (tsc){
+        kcLL* tr = tsc->trace;
+        kmerConnector* pkc = tr->last->kc;
+        tIdList* tt = _getTrace(&pkc->idflags, tr->ntid, tsc->posInTrace);
+        if (!tt){
+          printf("%" PRIu32 "\t%" PRIu32 "\n", tr->ntid, tsc->posInTrace);
+          printTIdList(pkc->idflags);
+          X_
+        }
+        kmerConnector* tkc = nextKc(&ms, &pkc, &tt, tsc->posInTrace);
+        if (tkc){
+          kcpush(&tr, &tkc, tr->ntid, 0);
+          tsc->posInTrace++;
+        }
+        else{
+          tsc->delme = true;
+        }
+        tsc = tsc->down;
+      }
+    }
+    else{
+      tIdList* tmp = kc->idflags;
+      while (tmp){
+        tIdList* eachPos = tmp->posInTrace;
+        while (eachPos){
+          E_(2, printf("%" PRIu32 "\t%" PRIu32 "\n", tmp->trace.n, eachPos->trace.n));
+          kcLL* tkcll = NULL;
+          kcpush(&tkcll, &kc, tmp->trace.n, start);
+          pushSeq(&result, &tkcll, eachPos->trace.n);
+          eachPos = eachPos->next;
+        }
+        tmp = tmp->next;
+      }
+    }
+    i++;
+  }
+  scEliminateDuplicates(khp, &result);
+  pruneSeqCollection(&result);
+  return result;
+}
+
+uint32_t nReads(kcLL** kclp){
+  kcLL* kcl = *kclp;
+  uint32_t result = (uint32_t) kcl->kc->n;
+  while (kcl){
+    tIdList* tid = _getTrace(&kcl->kc->idflags, kcl->ntid, 0);
+    uint32_t n = (uint32_t) kcl->kc->n;
+    if (n < result) result = n;
+    kcl = kcl->next;
+  }
+  return result;
+}
+
+void printHistogram (kmerHolder** khp, uint8_t kl){
   kmerHolder* kh = *khp;
   memstruct* ms = kh->ms;
   uint16_t hmax = 0;
@@ -390,6 +474,15 @@ void printHistogram (kmerHolder** khp){
   for (uint32_t i = 0; i < ms->nPos; i++){
     kmerConnector* kc = ms->kmerArray[i];
     if (kc){
+      seqCollection* fromHere = exploreSeqs(khp, i, kl);
+      //printSeqCollection(khp, &fromHere);
+      while (fromHere){
+        kcLL* tr = fromHere->trace;
+        uint32_t v = nReads(&tr);
+        printf("%s\t%"PRIu32"\n", fromHere->seq, v);
+        fromHere = fromHere->down;
+      }
+      X_
       uint16_t n = kc->n;
       if (n < HISTMAX){
         if (n > hmax) hmax = n;

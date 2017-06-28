@@ -12,44 +12,32 @@
 
 
 int main(int argc,char** argv){
-  if (argc < 2){
-    fprintf(stderr, "Use: kmerHist fastqFile [fromk11]\n");
+  char* k11File = NULL;
+  uint8_t userLength = 0;
+  for (int i = 1; i < argc; i++){
+    char* rg = argv[i];
+    D_(1, "%s\n", rg);
+    if (rg[0] == 0x2d){
+      if (EQ(rg, "-v")) DEBUG = 1;
+      if (EQ(rg, "-vv")) DEBUG = 2;
+      if (EQ(rg, "-k")){
+        i++;
+        userLength = (uint8_t) atoi(argv[i]);
+      }
+    }
+    else{
+      k11File = rg;
+    }
+  }
+  if (!k11File){
+    fprintf(stderr, "Use: %s k11_index_file [-v]\n", argv[0]);
     return 1;
   }
-  char* infile  = argv[1];
-  if (argc == 2){
-    char* outfile = (char*) calloc(80, sizeof(char));
-    sprintf(outfile, "%s.k11", argv[1]);
-    seqReader* sf = newSeqReader(infile);
-    kmerHolder* kh = initKmer(KMERLENGTH, 4);
-    while (getNextRead(&sf)){
-      D_(1, "Reading %s\n", chromName(&sf));
-      char fst = getNextBase(&sf);
-      while (fst){
-        updateKmer(&kh, &fst, addCount);
-        fst = getNextBase(&sf);
-      }
-      resetTrace(&kh);
-    }
-    writeOut(&kh, outfile);
-    printHistogram(&kh);
-    free(outfile);
-    destroySeqReader(&sf);
-    destroyKh(&kh);
-  }
-  else{
-    kmerHolder* kh = readIn(infile);
-    memstruct* ms = kh->ms;
-    for (uint32_t i = 0; i < ms->nPos; i++){
-      kmerConnector* kc = getConnector(&ms, i, 0);
-      if (kc){
-        char* seq = calloc(kh->kmerSize + 1, sizeof(char));
-        pos2seq(&ms, i, seq);
-        printf("%s\t%lu\n", seq, (LUI) kc->n);
-        free(seq);
-      }
-    }
-    //printHistogram(&kh);
-    destroyKh(&kh);
-  }
+  printf("Reading %s...\n", k11File);
+  kmerHolder* kh = readIn(k11File);
+  uint8_t klength = kh->kmerSize;
+  if (userLength > klength) klength = userLength;
+  printf("Generating histogram with k-mer length %" PRIu8 "\n", klength);
+  printHistogram(&kh, klength);
+  destroyKh(&kh);
 }

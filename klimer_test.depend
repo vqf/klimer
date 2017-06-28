@@ -11,7 +11,7 @@
 	<stdint.h>
 	<time.h>
 
-1498557404 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
+1498660175 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmer.h
 	<stdint.h>
 	<stdio.h>
 	<stdlib.h>
@@ -33,7 +33,7 @@
 
 1485629211 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\debugfileio.h
 
-1498581782 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerread.h
+1498659986 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerread.h
 	"kmer.h"
 	"traceIdList.h"
 	"stdio.h"
@@ -71,7 +71,7 @@
 	"myseqfunctions/kmerRead.h"
 	"myseqfunctions/mydmacros.h"
 
-1498562055 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\seqcollection.h
+1498659977 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\seqcollection.h
 	"mydmacros.h"
 
 1495139184 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\readfastq.h

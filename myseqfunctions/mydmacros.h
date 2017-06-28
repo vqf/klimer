@@ -20,7 +20,7 @@ int _L = 0;
 
 #define DOUT stderr
 #define D_(a, ...) if (DEBUG >= a) { fprintf(DOUT, "%s ", __FILE__); fprintf(DOUT, "=D_%d: ", __LINE__); fprintf(DOUT, __VA_ARGS__);}
-#define E_(a, b) if (DEBUG >= a){ printf("At %d: ", __LINE__); b; }
+#define E_(a, b) if (DEBUG >= a){ fprintf(DOUT, "%s ", __FILE__); printf("=E_%d: ", __LINE__); b; }
 #define P_(a) printf("%s at %d: %p\n", #a, __LINE__, a);
 #define X_ printf("\n=====\nExit at %d\n====\n", __LINE__); exit(0);
 #define DIE(...) printf(__VA_ARGS__); printf("File %s, line %d\n", __FILE__, __LINE__); exit(0);

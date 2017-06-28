@@ -33,6 +33,7 @@ int main(int argc, char** argv){
     seqCollection* result = searchSeq(&kh, seq);
     printSeqCollection(&kh, &result);
     printf("\n");
+    destroySeqCollection(&result);
   }
   printf("Cleaning...\n");
   free(seq);

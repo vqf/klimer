@@ -31,6 +31,7 @@ typedef struct seqCollection{
   bool delme;
   struct seqCollection* next;
   struct seqCollection* down;
+  char* seq;
 } seqCollection;
 
 void destroySeqCollection(seqCollection**);
@@ -112,6 +113,7 @@ seqCollection* newSeqCollection(){
   result->next = NULL;
   result->down = NULL;
   result->delme = false;
+  result->seq = NULL;
   return result;
 }
 
@@ -121,6 +123,7 @@ seqCollection* pushSeq(seqCollection** scp, kcLL** tracep, LISTTYPE posInTrace){
   if (!sc){
     sc = newSeqCollection();
     sc->trace = *tracep;
+    sc->posInTrace = posInTrace;
     *scp = sc;
     return sc;
   }
@@ -129,8 +132,8 @@ seqCollection* pushSeq(seqCollection** scp, kcLL** tracep, LISTTYPE posInTrace){
   }
   seqCollection* dn = newSeqCollection();
   dn->trace = *tracep;
+  dn->posInTrace = posInTrace;
   sc->down = dn;
-  sc->posInTrace = posInTrace;
   return dn;
 }
 
@@ -179,6 +182,8 @@ void pruneSeqCollection(seqCollection** scp){
 }
 
 
+
+
 void clearTraceUse(kcLL** kclp){
   kcLL* kcl = *kclp;
   while (kcl){
@@ -202,6 +207,7 @@ void destroySeqCollection(seqCollection** scp){
   }
   scp = NULL;
 }
+
 
 
 

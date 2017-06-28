@@ -87,7 +87,8 @@ char* getTraceSeq(kmerHolder** khp, kcLL** kcp){
   uint32_t cl = (uint32_t) (kh->kmerSize + l + 1);
   char* result = (char*) calloc((size_t) cl, sizeof(char));
   pos2seq(&kh->ms, kcll->cPos, result);
-  uint32_t j = (uint32_t) ((kh->kmerSize) - 1);
+  //DIE("%s\n", result);
+  uint32_t j = (uint32_t) ((kh->kmerSize));
   while (kcll){
     result[j] = getLastBase(khp, kcll->kc->dest);
     j++;
@@ -178,7 +179,7 @@ void printSeq(kmerHolder** khp, seqCollection** scp){
 void printSeqCollection(kmerHolder** khp, seqCollection** scp){
   seqCollection* sc = *scp;
   uint32_t i = 0;
-  if (!sc) printf("No sequence\n");
+  if (!sc) printf("No traces\n");
   while (sc){
     i++;
     if (sc->delme) D_(0, "delme\n");
