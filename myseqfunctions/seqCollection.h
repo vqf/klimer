@@ -31,6 +31,7 @@ typedef struct seqCollection{
   bool delme;
   struct seqCollection* next;
   struct seqCollection* down;
+  LISTTYPE depth;
   char* seq;
 } seqCollection;
 
@@ -112,6 +113,7 @@ seqCollection* newSeqCollection(){
   result->posInTrace = 0;
   result->next = NULL;
   result->down = NULL;
+  result->depth = 0;
   result->delme = false;
   result->seq = NULL;
   return result;

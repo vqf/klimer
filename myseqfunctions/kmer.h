@@ -383,6 +383,46 @@ void addCount(kmerHolder** kp, uint32_t pos){
   }
 }
 
+uint32_t nReads(kcLL** kclp, LISTTYPE posInTrace){
+  kcLL* kcl = *kclp;
+  uint32_t result = (uint32_t) kcl->kc->n;
+  //tIdList* ps = _getPos(&kcl->kc->idflags, kcl->ntid, posInTrace);
+  while (kcl){
+    tIdList* ps = _getPos(&kcl->kc->idflags, kcl->ntid, posInTrace);
+    if (ps){
+      uint32_t n = (uint32_t) ps->trace.nReads;
+      if (n < result) result = n;
+    }
+    else{
+      D_(0, "Error at nReads, tid %"PRIu32" pos %"PRIu32"\n", kcl->ntid, posInTrace);
+      printTIdList(kcl->kc->idflags);
+      X_
+    }
+    posInTrace++;
+    kcl = kcl->next;
+  }
+  return result;
+}
+
+void scMergeDuplicates(seqCollection** scp1, seqCollection** scp2){
+  seqCollection* sc1 = *scp1;
+  seqCollection* sc2 = *scp2;
+  kcLL* t1 = (*scp1)->trace;
+  kcLL* t2 = (*scp2)->trace;
+  LISTTYPE pos1 = sc1->posInTrace;
+  LISTTYPE pos2 = sc2->posInTrace;
+  while (t1){
+    tIdList* p1 = _getPos(&t1->kc->idflags, t1->ntid, pos1);
+    tIdList* p2 = _getPos(&t2->kc->idflags, t2->ntid, pos2);
+    D_(2, "%"PRIu32"\t", p1->trace.nReads);
+    p1->trace.nReads += p2->trace.nReads;
+    D_(2, "%"PRIu32"\n", p1->trace.nReads);
+    t1 = t1->next;
+    t2 = t2->next;
+    pos1++; pos2++;
+  }
+}
+
 void scEliminateDuplicates(kmerHolder** khp, seqCollection** scp){
   seqCollection* tsc = *scp;
   while (tsc){
@@ -398,6 +438,7 @@ void scEliminateDuplicates(kmerHolder** khp, seqCollection** scp){
           E_(2, printf("%s\t%s\n", sc->seq, f->seq));
           if (EQ(sc->seq, f->seq)){
             f->delme = true;
+            scMergeDuplicates(&sc, &f);
           }
         }
         f = f->down;
@@ -420,21 +461,24 @@ seqCollection* exploreSeqs(kmerHolder** khp, uint32_t start, uint32_t l){
     if (result){
       seqCollection* tsc = result;
       while (tsc){
-        kcLL* tr = tsc->trace;
-        kmerConnector* pkc = tr->last->kc;
-        tIdList* tt = _getTrace(&pkc->idflags, tr->ntid, tsc->posInTrace);
-        if (!tt){
-          printf("%" PRIu32 "\t%" PRIu32 "\n", tr->ntid, tsc->posInTrace);
-          printTIdList(pkc->idflags);
-          X_
-        }
-        kmerConnector* tkc = nextKc(&ms, &pkc, &tt, tsc->posInTrace);
-        if (tkc){
-          kcpush(&tr, &tkc, tr->ntid, 0);
-          tsc->posInTrace++;
-        }
-        else{
-          tsc->delme = true;
+        if (!tsc->delme){
+          kcLL* tr = tsc->trace;
+          kmerConnector* pkc = tr->last->kc;
+          tIdList* tt = _getTrace(&pkc->idflags, tr->ntid, tsc->posInTrace + i - 1);
+          if (!tt){
+            printf("%" PRIu32 "\t%" PRIu32 "\n", tr->ntid, tsc->posInTrace + i - 1);
+            printf("%" PRIu32 "\n", i);
+            printTIdList(pkc->idflags);
+            X_
+          }
+          kmerConnector* tkc = nextKc(&ms, &pkc, &tt, tsc->posInTrace + i - 1);
+          if (tkc){
+            kcpush(&tr, &tkc, tr->ntid, 0);
+            //tsc->posInTrace++;
+          }
+          else{
+            tsc->delme = true;
+          }
         }
         tsc = tsc->down;
       }
@@ -460,27 +504,6 @@ seqCollection* exploreSeqs(kmerHolder** khp, uint32_t start, uint32_t l){
   return result;
 }
 
-uint32_t nReads(kcLL** kclp, LISTTYPE posInTrace){
-  kcLL* kcl = *kclp;
-  uint32_t result = (uint32_t) kcl->kc->n;
-  //tIdList* ps = _getPos(&kcl->kc->idflags, kcl->ntid, posInTrace);
-  while (kcl){
-    tIdList* ps = _getPos(&kcl->kc->idflags, kcl->ntid, posInTrace);
-    if (ps){
-      uint32_t n = (uint32_t) ps->trace.nReads;
-      if (n < result) result = n;
-    }
-    else{
-      D_(0, "Error at nReads, tid %"PRIu32" pos %"PRIu32"\n", kcl->ntid, posInTrace);
-      printTIdList(kcl->kc->idflags);
-      X_
-    }
-    posInTrace++;
-    kcl = kcl->next;
-  }
-  return result;
-}
-
 void printHistogram (kmerHolder** khp, uint8_t kl){
   kmerHolder* kh = *khp;
   memstruct* ms = kh->ms;
@@ -494,7 +517,7 @@ void printHistogram (kmerHolder** khp, uint8_t kl){
       //printSeqCollection(khp, &fromHere);
       while (tmp){
         kcLL* tr = tmp->trace;
-        LISTTYPE startPos = tmp->posInTrace - (LISTTYPE) kl + (LISTTYPE) kh->kmerSize + 1;
+        LISTTYPE startPos = tmp->posInTrace;
         uint32_t v = nReads(&tr, startPos);
         D_(1, "%s\t%"PRIu32"\n", tmp->seq, v);
         tmp = tmp->down;
@@ -1377,6 +1400,16 @@ void _consolidate(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
       todel = _getTrace(&kcptr->idflags, n, cPosN);
       if (todel){
         if (!NalreadyDeleted) kcpush(toDelp, &kcptr, n, cPosN);
+        tIdList* oldPos = _getTrace(&iptr->posInTrace, cPosI, 0);
+        tIdList* todelPos = _getTrace(&todel->posInTrace, cPosN, 0);
+        if (todel->trace.nReads > iptr->trace.nReads){
+          iptr->trace.nReads = todel->trace.nReads;
+        }
+        if (oldPos){
+          if (todelPos->trace.nReads > oldPos->trace.nReads){
+            oldPos->trace.nReads = todelPos->trace.nReads;
+          }
+        }
       }
       else{
         goon = false;
