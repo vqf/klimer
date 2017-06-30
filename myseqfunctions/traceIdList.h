@@ -196,15 +196,15 @@ tIdList* insertInTIdList(tIdList** Iarr, LISTTYPE val){
   }
 }
 
-tIdList* addTrace(tIdList** tlp, LISTTYPE i){
+tIdList* addTrace(tIdList** tlp, LISTTYPE i, bool addNum){
   tIdList* r = insertInTIdList(tlp, i);
-  r->trace.nReads++;
+  if (addNum) r->trace.nReads++;
   return r;
 }
 
-tIdList* addPosInTrace(tIdList** ap, LISTTYPE pos){
+tIdList* addPosInTrace(tIdList** ap, LISTTYPE pos, bool addNum){
   tIdList* r = insertInTIdList((&(*ap)->posInTrace), pos);
-  r->trace.nReads++;
+  if (addNum) r->trace.nReads++;
   return r;
 }
 

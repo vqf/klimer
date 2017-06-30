@@ -160,10 +160,10 @@ void pruneSeqCollection(seqCollection** scp){
   seqCollection* psc = NULL;
   int counter = 0;
   while (sc){
-      counter++;
+    counter++;
     if (sc->delme){
       seqCollection* todel = sc;
-      D_(1, "Deleting %d\n", counter);
+      D_(2, "Deleting %d\n", counter);
       sc = sc->down;
       if (psc){
         psc->down = sc;
@@ -172,6 +172,7 @@ void pruneSeqCollection(seqCollection** scp){
         *scp = sc;
       }
       todel->down = NULL;
+      todel->next = NULL;
       destroySeqCollection(&todel);
     }
     else{
@@ -202,6 +203,8 @@ void destroySeqCollection(seqCollection** scp){
       destroySeqCollection(&sc->down);
     }
     seqCollection* nxt = sc->next;
+    resetKcLL(&sc->trace);
+    free(sc->seq);
     free(sc);
     sc = nxt;
   }
