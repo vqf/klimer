@@ -386,6 +386,11 @@ void addCount(kmerHolder** kp, uint32_t pos){
 uint32_t nReads(kcLL** kclp, LISTTYPE posInTrace){
   kcLL* kcl = *kclp;
   uint32_t result = (uint32_t) kcl->kc->n;
+  if (!result){
+    char s[100];
+    printKmerConnector(kcl->kc, s);
+    X_;
+  }
   //tIdList* ps = _getPos(&kcl->kc->idflags, kcl->ntid, posInTrace);
   while (kcl){
     tIdList* ps = _getPos(&kcl->kc->idflags, kcl->ntid, posInTrace);
@@ -1406,9 +1411,7 @@ void _consolidate(kmerHolder** khp, kmerConnector** kcp, LISTTYPE i,
           iptr->trace.nReads = todel->trace.nReads;
         }
         if (oldPos){
-          if (todelPos->trace.nReads > oldPos->trace.nReads){
-            oldPos->trace.nReads = todelPos->trace.nReads;
-          }
+          oldPos->trace.nReads += todelPos->trace.nReads;
         }
       }
       else{

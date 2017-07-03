@@ -5,6 +5,7 @@
 #include "readFastq.h"
 #include "readFastas.h"
 
+
 typedef enum { fasta, fastq } seqFileType;
 
 typedef struct seqReader{

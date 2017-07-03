@@ -231,7 +231,7 @@ seqCollection* searchSeq(kmerHolder** khp, char* seq){
           tIdList* eachPos = tmp->posInTrace;
           while (eachPos){
             kcLL* tkcll = NULL;
-            kcpush(&tkcll, &kc, tmp->trace.n, cPos);
+            kcpush(&tkcll, &kc, tmp->trace.n, prevPos);
             pushSeq(&result, &tkcll, eachPos->trace.n);
             eachPos = eachPos->next;
           }
