@@ -70,6 +70,11 @@
 				<Option type="1" />
 				<Option compiler="gcc" />
 			</Target>
+			<Target title="drawKh">
+				<Option output="drawKh" prefix_auto="1" extension_auto="1" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
@@ -96,6 +101,10 @@
 		<Unit filename="compareMaps.c">
 			<Option compilerVar="CC" />
 			<Option target="compareMaps" />
+		</Unit>
+		<Unit filename="drawKh.c">
+			<Option compilerVar="CC" />
+			<Option target="drawKh" />
 		</Unit>
 		<Unit filename="khSummary.c">
 			<Option compilerVar="CC" />
@@ -130,6 +139,7 @@
 			<Option target="kmerHist" />
 			<Option target="mergeKh" />
 		</Unit>
+		<Unit filename="myseqfunctions/khDraw.h" />
 		<Unit filename="myseqfunctions/kmer.h">
 			<Option target="Debug" />
 			<Option target="Release" />
@@ -139,6 +149,7 @@
 			<Option target="mergeKh" />
 			<Option target="khSummary" />
 			<Option target="checkSeq" />
+			<Option target="drawKh" />
 		</Unit>
 		<Unit filename="myseqfunctions/kmerIO.h">
 			<Option target="Debug" />
@@ -150,6 +161,7 @@
 			<Option target="mergeKh" />
 			<Option target="khSummary" />
 			<Option target="checkSeq" />
+			<Option target="drawKh" />
 		</Unit>
 		<Unit filename="myseqfunctions/kmerRead.h">
 			<Option target="Debug" />
@@ -161,6 +173,7 @@
 			<Option target="mergeKh" />
 			<Option target="khSummary" />
 			<Option target="checkSeq" />
+			<Option target="drawKh" />
 		</Unit>
 		<Unit filename="myseqfunctions/mydmacros.h" />
 		<Unit filename="myseqfunctions/readFastas.h">
@@ -200,6 +213,7 @@
 			<Option target="kmerHist" />
 			<Option target="mergeKh" />
 			<Option target="khSummary" />
+			<Option target="drawKh" />
 		</Unit>
 		<Unit filename="test.c">
 			<Option compilerVar="CC" />

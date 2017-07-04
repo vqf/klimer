@@ -33,7 +33,7 @@
 
 1485629211 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\debugfileio.h
 
-1499022440 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerread.h
+1499101679 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\kmerread.h
 	"kmer.h"
 	"traceIdList.h"
 	"stdio.h"
@@ -128,12 +128,23 @@
 	<inttypes.h>
 	<unistd.h>
 
-1499087782 source:c:\users\vqf\documents\cpp\klimer_project\github\checkseq.c
+1499088590 source:c:\users\vqf\documents\cpp\klimer_project\github\checkseq.c
 	"myseqfunctions/kmer.h"
 	"myseqfunctions/kmerIO.h"
 	"myseqfunctions/kmerRead.h"
+	<time.h>
 	<stdio.h>
 	<stdlib.h>
 	<string.h>
 	<stdint.h>
+
+1499164901 source:c:\users\vqf\documents\cpp\klimer_project\github\drawkh.c
+	"myseqfunctions/kmer.h"
+	"myseqfunctions/kmerRead.h"
+	"myseqfunctions/kmerIO.h"
+	"myseqfunctions/khDraw.h"
+
+1499164916 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\khdraw.h
+	<inttypes.h>
+	"kmer.h"
 
