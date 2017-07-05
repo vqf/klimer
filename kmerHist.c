@@ -35,8 +35,13 @@ int main(int argc,char** argv){
   }
   printf("Reading %s...\n", k11File);
   kmerHolder* kh = readIn(k11File);
-  uint8_t klength = kh->kmerSize;
+  uint8_t klength = kh->kmerSize + 1;
   if (userLength > klength) klength = userLength;
+  if (klength <= kh->kmerSize){
+    printf("This version only generates histograms for k-mer lengths larger than %"
+           PRIu8"\n", kh->kmerSize);
+    exit(0);
+  }
   printf("Generating histogram with k-mer length %" PRIu8 "\n", klength);
   printHistogram(&kh, klength);
   destroyKh(&kh);

@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1498847548 source:c:\users\vqf\documents\cpp\klimer_project\github\test.c
+1499202444 source:c:\users\vqf\documents\cpp\klimer_project\github\test.c
 	<assert.h>
 	<stdarg.h>
 	"myseqfunctions/kmer.h"
@@ -50,14 +50,16 @@
 	<inttypes.h>
 	<unistd.h>
 
-1493743600 source:c:\users\vqf\documents\cpp\klimer_project\github\buildmap.c
+1499253596 source:c:\users\vqf\documents\cpp\klimer_project\github\buildmap.c
 	<stdlib.h>
 	<time.h>
+	<getopt.h>
 	"myseqfunctions/kmer.h"
 	"myseqfunctions/kmerIO.h"
 	"myseqfunctions/readSeqFiles.h"
+	"myseqfunctions/kmerRead.h"
 
-1491296680 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\readfastas.h
+1498132015 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\readfastas.h
 	"mydmacros.h"
 	"IOLayer.h"
 
@@ -74,7 +76,7 @@
 1498819316 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\seqcollection.h
 	"mydmacros.h"
 
-1495139184 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\readfastq.h
+1496914930 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\readfastq.h
 	<sys/types.h>
 	<stdio.h>
 	"IOLayer.h"
@@ -88,19 +90,19 @@
 	<unistd.h>
 	<unixio.h>
 
-1495137984 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\iolayer.h
+1496915480 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\iolayer.h
 	<sys/types.h>
 	<stdio.h>
 	"mydmacros.h"
 	<zlib.h>
 	<errno.h>
 
-1491294501 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\readseqfiles.h
+1499084302 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\readseqfiles.h
 	"stdio.h"
 	"readFastq.h"
 	"readFastas.h"
 
-1495135052 source:c:\users\vqf\documents\cpp\klimer_project\github\kmerhist.c
+1499254436 source:c:\users\vqf\documents\cpp\klimer_project\github\kmerhist.c
 	<stdio.h>
 	<stdlib.h>
 	<string.h>
@@ -138,13 +140,14 @@
 	<string.h>
 	<stdint.h>
 
-1499164901 source:c:\users\vqf\documents\cpp\klimer_project\github\drawkh.c
+1499171131 source:c:\users\vqf\documents\cpp\klimer_project\github\drawkh.c
 	"myseqfunctions/kmer.h"
 	"myseqfunctions/kmerRead.h"
 	"myseqfunctions/kmerIO.h"
 	"myseqfunctions/khDraw.h"
 
-1499164916 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\khdraw.h
+1499171191 c:\users\vqf\documents\cpp\klimer_project\github\myseqfunctions\khdraw.h
 	<inttypes.h>
 	"kmer.h"
+	<math.h>
 
