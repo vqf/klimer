@@ -7,3 +7,4 @@ This set of applications illustrates the klimer algorithm for indexing of NGS re
 * kmerHist - Builds a k-mer histogram for an arbitrary k value from an index file. Use: kmerHist indexFile [-k kmerLength]
 
 # Installation and testing
+The folder contains the project files from Code:Blocks. In Linux, the script compile.sh followed by the name of a c file should compile it. The folders Win32 and LinuxBin contain pre-compiled binaries for both systems. 
