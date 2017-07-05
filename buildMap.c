@@ -20,7 +20,7 @@ int main(int argc,char** argv){
     fprintf(stderr, "Use: %s fasta_file [outfile] [-v] [-k kmerLength]\n", argv[0]);
     return 1;
   }
-  uint8_t kmerLength = 15;
+  uint8_t kmerLength = 11;
   char* infile  = argv[1];
   char* outfile = (char*) calloc(80, sizeof(char));
 
